@@ -1,0 +1,10 @@
+description = "Spring Debug Module"
+
+apply plugin: 'java'
+
+dependencies {
+    implementation(project(":spring-context"))
+    implementation(project(":spring-aop"))
+    implementation(project(":spring-beans"))
+    implementation(project(":spring-core"))
+}
