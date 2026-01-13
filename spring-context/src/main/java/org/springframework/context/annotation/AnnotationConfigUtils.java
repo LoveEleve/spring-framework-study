@@ -150,9 +150,11 @@ public abstract class AnnotationConfigUtils {
 
 		DefaultListableBeanFactory beanFactory = unwrapDefaultListableBeanFactory(registry);
 		if (beanFactory != null) {
+			// 1. 设置依赖比较器 - 支持@Order、@Priority注解排序
 			if (!(beanFactory.getDependencyComparator() instanceof AnnotationAwareOrderComparator)) {
 				beanFactory.setDependencyComparator(AnnotationAwareOrderComparator.INSTANCE);
 			}
+			// 2. 设置自动装配候选解析器 - 支持@Qualifier、@Value等注解
 			if (!(beanFactory.getAutowireCandidateResolver() instanceof ContextAnnotationAutowireCandidateResolver)) {
 				beanFactory.setAutowireCandidateResolver(new ContextAnnotationAutowireCandidateResolver());
 			}
@@ -160,6 +162,13 @@ public abstract class AnnotationConfigUtils {
 
 		Set<BeanDefinitionHolder> beanDefs = new LinkedHashSet<>(8);
 
+		/**
+		 *  forcus 注册6大处理器：前提是容器中没有对应的beanName
+		 *   1. 创建 RootBeanDefinition对象(设置class对象到beanClass属性中)
+		 *   2. def.setSource(source) 这里是null
+		 *   3. BeanDefinitionHolder bh= registerPostProcessor(xxx) forcus 核心方法
+		 *   4. beanDefs.add(bh):
+		 */
 		if (!registry.containsBeanDefinition(CONFIGURATION_ANNOTATION_PROCESSOR_BEAN_NAME)) {
 			RootBeanDefinition def = new RootBeanDefinition(ConfigurationClassPostProcessor.class);
 			def.setSource(source);
@@ -211,9 +220,35 @@ public abstract class AnnotationConfigUtils {
 
 	private static BeanDefinitionHolder registerPostProcessor(
 			BeanDefinitionRegistry registry, RootBeanDefinition definition, String beanName) {
+        // forcus ROLE_INFRASTRUCTURE 在这里注册的后置处理器的 Role都是 ROLE_INFRASTRUCTURE(基础设施角色)
+		// 这代表这些都是Spring内部使用的Bean,不是用户业务Bean
+		/*
+			forcus 这里介绍一下 Bean Role(角色)
+			在Spring中一共有3种角色
+			 1.ROLE_INFRASTRUCTURE: 基础设施角色(Spring内部使用的Bean)
+			 2.ROLE_APPLICATION: 应用角色(用户定义的业务Bean)
+			 3.ROLE_SUPPORT: 支持角色(配置类或支持组件)
+			 ===
+ 			forcus Role的作用:
 
+ 			 1. Bean覆盖策略 - 保护框架稳定性：
+ 			  - 用户定义的Bean不能覆盖Spring内部的关键组件
+
+ 			 2. AOP基础设施保护
+ 			  - 只有基础设施Bean才能作为基础设施级Advisor
+ 			  - protected boolean isEligibleAdvisorBean(String beanName)
+
+ 			 3. 配置类Bean方法覆盖控制
+ 			  - if (existingBeanDef.getRole() > BeanDefinition.ROLE_APPLICATION) {
+					// 应用级Bean可以被基础设施Bean覆盖
+    			    // 但基础设施Bean不能被应用级Bean覆盖
+					return false;
+				}
+		 */
 		definition.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
+		// forcus 注册BeanDefinition
 		registry.registerBeanDefinition(beanName, definition);
+		// 最终返回的是 BeanDefinitionHolder(包装了bean定义和beanName)
 		return new BeanDefinitionHolder(definition, beanName);
 	}
 

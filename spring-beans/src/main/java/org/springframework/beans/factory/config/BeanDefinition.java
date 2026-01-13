@@ -61,7 +61,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * Role hint indicating that a {@code BeanDefinition} is a major part
 	 * of the application. Typically corresponds to a user-defined bean.
 	 */
-	int ROLE_APPLICATION = 0;
+	int ROLE_APPLICATION = 0; // forcus 应用级Bean - 用户定义的业务Bean
 
 	/**
 	 * Role hint indicating that a {@code BeanDefinition} is a supporting
@@ -72,7 +72,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * {@link org.springframework.beans.factory.parsing.ComponentDefinition},
 	 * but not when looking at the overall configuration of an application.
 	 */
-	int ROLE_SUPPORT = 1;
+	int ROLE_SUPPORT = 1; // forcus 支持级Bean - 配置类或支持组件
 
 	/**
 	 * Role hint indicating that a {@code BeanDefinition} is providing an
@@ -80,7 +80,7 @@ public interface BeanDefinition extends AttributeAccessor, BeanMetadataElement {
 	 * used when registering beans that are completely part of the internal workings
 	 * of a {@link org.springframework.beans.factory.parsing.ComponentDefinition}.
 	 */
-	int ROLE_INFRASTRUCTURE = 2;
+	int ROLE_INFRASTRUCTURE = 2; // forcus 基础设施Bean - Spring内部使用的Bean
 
 
 	// Modifiable attributes

@@ -3,8 +3,23 @@ description = "Spring Debug Module"
 apply plugin: 'java'
 
 dependencies {
+    // Spring 核心模块
     implementation(project(":spring-context"))
     implementation(project(":spring-aop"))
     implementation(project(":spring-beans"))
     implementation(project(":spring-core"))
+    implementation(project(":spring-aspects"))
+    
+    // 事务和JDBC支持
+    implementation(project(":spring-tx"))
+    implementation(project(":spring-jdbc"))
+    
+    // AspectJ支持
+    implementation "org.aspectj:aspectjweaver:1.9.7"
+    
+    // JSR注解支持
+    implementation "javax.annotation:javax.annotation-api:1.3.2"
+    
+    // H2数据库（用于事务演示）
+    implementation "com.h2database:h2:1.4.200"
 }

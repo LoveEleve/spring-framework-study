@@ -64,11 +64,20 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * Create a new AnnotationConfigApplicationContext that needs to be populated
 	 * through {@link #register} calls and then manually {@linkplain #refresh refreshed}.
 	 */
+	/**
+	 * 除了下面显示创建的reader和scanner之外,别忘记类对象/实例对象/父类构造方法的调用
+	 *  - 父类构造函数: GenericApplicationContext()
+	 */
 	public AnnotationConfigApplicationContext() {
+		// forcus 这是Spring5.3.x版本引入的应用启动性能监控机制
+		// 在这里的作用是监控AnnotatedBeanDefinitionReader的创建耗时 (start)
+		// forcus 默认的实现只是返回一个单例对象,没有任何逻辑
+		// 可以通过 context.setApplicationStartup(new CustomApplicationStartup());
+		// context.setApplicationStartup(new FlightRecorderApplicationStartup()); 来替换
 		StartupStep createAnnotatedBeanDefReader = getApplicationStartup().start("spring.context.annotated-bean-reader.create");
-		this.reader = new AnnotatedBeanDefinitionReader(this);
-		createAnnotatedBeanDefReader.end();
-		this.scanner = new ClassPathBeanDefinitionScanner(this);
+		this.reader = new AnnotatedBeanDefinitionReader(this); // forcus 创建Bean定义读取器
+		createAnnotatedBeanDefReader.end();// 结束监控
+		this.scanner = new ClassPathBeanDefinitionScanner(this); // forcus 创建类路径扫描器
 	}
 
 	/**
@@ -87,8 +96,15 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 * @param componentClasses one or more component classes &mdash; for example,
 	 * {@link Configuration @Configuration} classes
 	 */
+	/**
+	 * forcus 在阅读源码的时候特别要注意一点:那就是在调用某个对象的构造函数的时候,需要注意执行的顺序：不要忘记了类对象/实例对象/父类构造方法的调用
+	 *  1.调用父类的构造函数(同理)
+	 *  2.初始化类变量 & 实例对象
+	 *  3.执行构造函数
+	 * @param componentClasses 传入的启动配置类的class对象
+	 */
 	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
-		this();
+		this(); // forcus 图解-1
 		register(componentClasses);
 		refresh();
 	}

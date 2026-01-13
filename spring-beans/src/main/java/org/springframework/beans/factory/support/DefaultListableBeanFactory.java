@@ -982,7 +982,14 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	//---------------------------------------------------------------------
 	// Implementation of BeanDefinitionRegistry interface
 	//---------------------------------------------------------------------
+   /*
+   		在这里首先介绍一下 DefaultListableBeanFactory 中的一些数据结构(不是全部)
+   		 1. Map<String, BeanDefinition> beanDefinitionMap : Bean定义映射表
+   		 2. volatile List<String> beanDefinitionNames : Bean名称列表 - 保持注册顺序，用于迭代
+   		 3. volatile Set<String> manualSingletonNames : 手动注册的单例Bean名称集合
+   		 4. volatile String[] frozenBeanDefinitionNames : 冻结的Bean定义名称数组 - 优化性能
 
+    */
 	@Override
 	public void registerBeanDefinition(String beanName, BeanDefinition beanDefinition)
 			throws BeanDefinitionStoreException {
@@ -999,12 +1006,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 						"Validation of bean definition failed", ex);
 			}
 		}
-
+  		// forcus-1 根据 beanName 从 beanDefinitionMap 获取已经存在的BeanDefinition
+		// 通常情况下,第一次注册的时候是没有的(但是可能出现相同名称的bean,所以在这里是需要进行处理的)
 		BeanDefinition existingDefinition = this.beanDefinitionMap.get(beanName);
 		if (existingDefinition != null) {
+			// spring默认支持bean的覆盖
 			if (!isAllowBeanDefinitionOverriding()) {
 				throw new BeanDefinitionOverrideException(beanName, beanDefinition, existingDefinition);
 			}
+			// forcus-2 角色优先级检查 - 关键的覆盖策略
+			// 应用Bean(0) 被 基础设施Bean(2) 覆盖 - 框架优先（然后会输出日志）
 			else if (existingDefinition.getRole() < beanDefinition.getRole()) {
 				// e.g. was ROLE_APPLICATION, now overriding with ROLE_SUPPORT or ROLE_INFRASTRUCTURE
 				if (logger.isInfoEnabled()) {
@@ -1013,6 +1024,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							existingDefinition + "] with [" + beanDefinition + "]");
 				}
 			}
+			// forcus-3 在这里bf是重写了equal()方法的 -- 这里用到了equal()相关的知识
+			// 那就是当我们需要用自己的逻辑来判断两个对象是否相等的时候,就需要重写equal()方法,否则默认实现为object.equal() -- 地址比较
+			// 但是bf实现的是：两者内部的属性都是一样时,比如beanName,beanClassName,各种标识位,...等等都一致时,则认为两者是相同的bean定义
+			// 在这里如果是不相同的,那么打印日志
 			else if (!beanDefinition.equals(existingDefinition)) {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Overriding bean definition for bean '" + beanName +
@@ -1020,6 +1035,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+			// 相同的bean定义,打印日志
 			else {
 				if (logger.isTraceEnabled()) {
 					logger.trace("Overriding bean definition for bean '" + beanName +
@@ -1027,11 +1043,16 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							"] with [" + beanDefinition + "]");
 				}
 			}
+			// 最终put()进去,这里会覆盖掉旧的bean定义
 			this.beanDefinitionMap.put(beanName, beanDefinition);
 		}
+
+		// forcus-4 如果existingDefinition为null,则说明是第一次注册
 		else {
+			// forcus-4.1 这里是判断是否已经开始创建bean了 (这通常是在运行时,而在初始化阶段,这里是返回false的)
 			if (hasBeanCreationStarted()) {
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
+				// 运行时需要保证线程安全
 				synchronized (this.beanDefinitionMap) {
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
@@ -1041,15 +1062,34 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 					removeManualSingletonName(beanName);
 				}
 			}
+			// forcus-4.2 初始化阶段,不需要加锁,直接操作对应的容器
 			else {
 				// Still in startup registration phase
+				// 添加到 beanDefinitionMap 和 beanDefinitionNames中
 				this.beanDefinitionMap.put(beanName, beanDefinition);
 				this.beanDefinitionNames.add(beanName);
+				// forcus-4.3 移除手动注册的单例Bean名称
+				/*
+					介绍：在Spring5.3.x的容器中,有两种不同的bean管理方式
+						1. Bean 定义注册:registry.registerBeanDefinition("myBean", beanDefinition)
+						2. 手动单例注册: registry.registerSingleton("myBean", actualObject)
+						    	- 只有当该 Bean 名称不存在于 beanDefinitionMap 中时，才会添加到 manualSingletonNames
+						但是现在时bean定义注册,所以这里需要移除手动注册的单例Bean名称,避免维护多个beanName
+				 */
 				removeManualSingletonName(beanName);
 			}
+			/*
+				forcus-4.4 frozenBeanDefinitionNames
+
+				  作用：这是一种优化机制，用于缓存 Bean 定义名称的数组形式，避免重复的 List 到 Array 转换
+				  那么在这里为什么要置空呢？
+				   - 为了避免数据不一致,因为这是对list形式的beanNames的缓存
+				     但是在上面才调用了this.beanDefinitionNames.add(beanName);增加新的beanName
+				     如果不置空,那么这里的 frozenBeanDefinitionNames 与 beanDefinitionNames 就会不一致
+			 */
 			this.frozenBeanDefinitionNames = null;
 		}
-
+   		// forcus-5 说实话,这里没太看懂是在干什么呢?
 		if (existingDefinition != null || containsSingleton(beanName)) {
 			resetBeanDefinition(beanName);
 		}

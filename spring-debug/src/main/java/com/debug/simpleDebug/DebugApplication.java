@@ -1,4 +1,4 @@
-package com.debug;
+package com.debug.simpleDebug;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -6,9 +6,9 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ComponentScan("com.debug")
+@ComponentScan("com.debug.simpleDebug")
 public class DebugApplication {
-
+	//
 	public static void main(String[] args) {
 		// 断点1: 容器创建入口 - 可以跟踪 refresh() 方法
 		AnnotationConfigApplicationContext context =
@@ -20,7 +20,7 @@ public class DebugApplication {
 
 		context.close();
 	}
-
+	//
 	@Bean
 	public HelloService helloService() {
 		return new HelloService();
