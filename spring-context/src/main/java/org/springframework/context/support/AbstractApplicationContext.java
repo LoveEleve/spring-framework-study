@@ -556,20 +556,53 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			StartupStep contextRefresh = this.applicationStartup.start("spring.context.refresh");
 
 			// Prepare this context for refreshing.
+			/*
+			    forcus 这里一共要关注3个点:
+			    ==
+			     1.initPropertySources();在Spring中为空,但是在Web中存在扩展
+			     2.初始化了两个集合
+			      2.1 earlyApplicationListeners
+			      2.2 earlyApplicationEvents ： 尤其是要关注这个集合，用来在事件广播器创建之前，保存提前发布的事件
+			 */
 			prepareRefresh();
 
 			// Tell the subclass to refresh the internal bean factory.
+			// forcus 对于注解型的 AnnotationConfigApplicationContext来说,这里什么也不做,只是返回了之前创建的 beanFactory对象
 			ConfigurableListableBeanFactory beanFactory = obtainFreshBeanFactory();
 
 			// Prepare the bean factory for use in this context.
+			// forcus 负责配置BeanFactory的标准上下文特性，为后续的Bean创建做准备
+			/*
+				关注点:
+				 1. 添加BPP对象到 beanPostProcessors 集合中
+				  - ApplicationContextAwareProcessor
+				  - ApplicationListenerDetector
+				 2. 忽略某些接口
+				 3. 注册环境Bean对象到一级缓存中
+			 */
 			prepareBeanFactory(beanFactory);
 
 			try {
 				// Allows post-processing of the bean factory in context subclasses.
+				// forcus 在spring中为空实现
+				/*
+					模版方法设计模式,为什么要在这里设置一个扩展点呢？
+					 目的是为了让子类可以在 "标准初始化之后、BFPP执行之前"定制 BeanFactory,这里将beanFactory作为参数传入
+					  - AbstractApplicationContext：为空实现
+					  - AbstractRefreshableWebApplicationContext：forcus 在springboot中会使用到
+				 */
 				postProcessBeanFactory(beanFactory);
 
 				StartupStep beanPostProcess = this.applicationStartup.start("spring.context.beans.post-process");
 				// Invoke factory processors registered as beans in the context.
+				/*
+				   前提回顾: 此时所有的业务类还没有被处理(没有beanDefinition,bean实例)
+
+				   forcus 核心方法，处理两类核心的后置处理器 -- 是真的核心方法
+				   == 并且是先执行 BDRPP 的扩展方法，再执行 BFPP的扩展方法
+				    - BDRPP : BeanDefinitionRegistryPostProcessor : 可以注册新的BeanDefinition
+				    - BFPP : BeanFactoryPostProcessor: 只能修改已有的BeanDefinition
+				 */
 				invokeBeanFactoryPostProcessors(beanFactory);
 				// Register bean processors that intercept bean creation.
 				registerBeanPostProcessors(beanFactory);
@@ -627,6 +660,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// Switch to active.
 		this.startupDate = System.currentTimeMillis();
 		this.closed.set(false);
+		// forcus 设置为 active 状态 (代表容器正在运行)
 		this.active.set(true);
 
 		if (logger.isDebugEnabled()) {
@@ -639,6 +673,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Initialize any placeholder property sources in the context environment.
+		// 初始化属性源,在spring中默认实现为空
+		// forcus Web应用可以在这里初始化Servlet相关属性,后续介绍SpringBoot源码时会介绍
 		initPropertySources();
 
 		// Validate that all properties marked as required are resolvable:
@@ -646,6 +682,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		getEnvironment().validateRequiredProperties();
 
 		// Store pre-refresh ApplicationListeners...
+		// forcus 创建早期监听器
 		if (this.earlyApplicationListeners == null) {
 			this.earlyApplicationListeners = new LinkedHashSet<>(this.applicationListeners);
 		}
@@ -657,6 +694,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// Allow for the collection of early ApplicationEvents,
 		// to be published once the multicaster is available...
+		// forcus 创建早期事件集合
+		/*
+			这里存在时许问题,没有事件广播器，但是可能产生事件,这个时候该怎么半呢？
+			如果不管,那么这些事件就丢失了,所以这个集合就是用来存储这些事件的
+			等到事件广播器就绪,然后就进行事件的发布
+		 */
 		this.earlyApplicationEvents = new LinkedHashSet<>();
 	}
 
@@ -686,14 +729,27 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void prepareBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		// Tell the internal bean factory to use the context's class loader etc.
+		// forcus 设置类加载器，用于加载Bean的Class
 		beanFactory.setBeanClassLoader(getClassLoader());
+		// forcus 设置SpEL表达式解析器，支持 #{...} 表达式
 		if (!shouldIgnoreSpel) {
 			beanFactory.setBeanExpressionResolver(new StandardBeanExpressionResolver(beanFactory.getBeanClassLoader()));
 		}
+		// forcus 注册属性编辑器，用于类型转换（如String -> Resource）
 		beanFactory.addPropertyEditorRegistrar(new ResourceEditorRegistrar(this, getEnvironment()));
 
 		// Configure the bean factory with context callbacks.
+		// forcus 注册 ApplicationContextAwareProcessor
+		/*
+			这个处理器负责注入各种xxxAware接口,核心方法在其内部的postProcessBeforeInitialization()
+			forcus 这是一个BPP
+		 */
 		beanFactory.addBeanPostProcessor(new ApplicationContextAwareProcessor(this));
+		// forcus 忽略依赖接口,为什么要忽略?
+		/*
+			为了避免循环依赖,这些Aware接口的注入是通过 ApplicationContextAwareProcessor 在特定时间点来注入的，
+			而不是通过依赖注入(比如@Autowired)
+		 */
 		beanFactory.ignoreDependencyInterface(EnvironmentAware.class);
 		beanFactory.ignoreDependencyInterface(EmbeddedValueResolverAware.class);
 		beanFactory.ignoreDependencyInterface(ResourceLoaderAware.class);
@@ -704,12 +760,28 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 
 		// BeanFactory interface not registered as resolvable type in a plain factory.
 		// MessageSource registered (and found for autowiring) as a bean.
+		// forcus 注册可解析的依赖接口
+		/*
+			这里就和上面相反了,下面注册的4个接口,则是可以依赖注入的
+		 */
 		beanFactory.registerResolvableDependency(BeanFactory.class, beanFactory);
 		beanFactory.registerResolvableDependency(ResourceLoader.class, this);
 		beanFactory.registerResolvableDependency(ApplicationEventPublisher.class, this);
 		beanFactory.registerResolvableDependency(ApplicationContext.class, this);
 
 		// Register early post-processor for detecting inner beans as ApplicationListeners.
+		// forcus 注册 监听器检测器
+		/*
+			自动检测并且注册实现了 ApplicationListener 接口的Bean
+			@Component
+			public class MyListener implements ApplicationListener<ContextRefreshedEvent> {
+				@Override
+				public void onApplicationEvent(ContextRefreshedEvent event) {
+					// 🔥 ApplicationListenerDetector会自动将这个Bean注册为监听器
+				}
+			}
+			forcus 这是一个BPP
+		 */
 		beanFactory.addBeanPostProcessor(new ApplicationListenerDetector(this));
 
 		// Detect a LoadTimeWeaver and prepare for weaving, if found.
@@ -720,6 +792,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		}
 
 		// Register default environment beans.
+		// forcus 注册默认环境的Bean
 		if (!beanFactory.containsLocalBean(ENVIRONMENT_BEAN_NAME)) {
 			beanFactory.registerSingleton(ENVIRONMENT_BEAN_NAME, getEnvironment());
 		}
@@ -752,8 +825,14 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * <p>Must be called before singleton instantiation.
 	 */
 	protected void invokeBeanFactoryPostProcessors(ConfigurableListableBeanFactory beanFactory) {
+		// forcus
+		/*
+			getBeanFactoryPostProcessors():默认为空
+		 */
 		PostProcessorRegistrationDelegate.invokeBeanFactoryPostProcessors(beanFactory, getBeanFactoryPostProcessors());
 
+
+		// ============ 下面的展示可以忽略 ============
 		// Detect a LoadTimeWeaver and prepare for weaving, if found in the meantime
 		// (e.g. through an @Bean method registered by ConfigurationClassPostProcessor)
 		if (!NativeDetector.inNativeImage() && beanFactory.getTempClassLoader() == null &&

@@ -75,15 +75,29 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 
 	/** Cache of singleton objects: bean name to bean instance. */
+	// forcus “一级缓存”,用来存放完全初始化好的单例Bean
+	/*
+	 	初始时存放了4个bean实例
+	 	 - DefaultApplicationStartup
+	 	 - systemEnvironment ： os系统属性(只读)
+	 	 - StandardEnvironment ： 统一的环境抽象，管理 profiles 和 properties
+	 	 	- activeProfiles = []（当前未激活特定 profile）
+	 	 	- defaultProfiles = ["default"]
+	 	 	- propertySources = [系统属性、环境变量等]
+	 	 - systemProperties ： System.getProperties() - jvm系统属性
+	 */
 	private final Map<String, Object> singletonObjects = new ConcurrentHashMap<>(256);
 
 	/** Cache of singleton factories: bean name to ObjectFactory. */
+	// forcus "三级缓存" 存放 Bean 工厂（延迟创建代理）
 	private final Map<String, ObjectFactory<?>> singletonFactories = new HashMap<>(16);
 
 	/** Cache of early singleton objects: bean name to bean instance. */
+	// forcus "二级缓存" 存放提前暴露的 Bean（解决循环依赖）
 	private final Map<String, Object> earlySingletonObjects = new ConcurrentHashMap<>(16);
 
 	/** Set of registered singletons, containing the bean names in registration order. */
+	// forcus 按注册顺序记录所有单例 Bean 名称
 	private final Set<String> registeredSingletons = new LinkedHashSet<>(256);
 
 	/** Names of beans that are currently in creation. */
@@ -119,11 +133,14 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		Assert.notNull(beanName, "Bean name must not be null");
 		Assert.notNull(singletonObject, "Singleton object must not be null");
 		synchronized (this.singletonObjects) {
+			// forcus 检查一级缓存是否已存在,已存在则抛异常，不允许覆盖
+			// 从这里可以看到,在spring中,好像只允许 beanDefinition被覆盖,不允许已经实例化的bean被覆盖
 			Object oldObject = this.singletonObjects.get(beanName);
 			if (oldObject != null) {
 				throw new IllegalStateException("Could not register object [" + singletonObject +
 						"] under bean name '" + beanName + "': there is already object [" + oldObject + "] bound");
 			}
+			// forcus 添加到一级缓存中 (singletonObject)
 			addSingleton(beanName, singletonObject);
 		}
 	}
@@ -135,6 +152,12 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param singletonObject the singleton object
 	 */
 	protected void addSingleton(String beanName, Object singletonObject) {
+		/*
+		  	1. 放入一级缓存（最终存储位置）
+		  	2. 移除三级缓存
+			3. 移除二级缓存
+			4. 添加到registeredSingletons
+		 */
 		synchronized (this.singletonObjects) {
 			this.singletonObjects.put(beanName, singletonObject);
 			this.singletonFactories.remove(beanName);

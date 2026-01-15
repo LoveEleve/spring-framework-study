@@ -135,7 +135,7 @@ public class AnnotatedBeanDefinitionReader {
 	 */
 	public void register(Class<?>... componentClasses) {
 		for (Class<?> componentClass : componentClasses) {
-			registerBean(componentClass);
+			registerBean(componentClass); // forcus
 		}
 	}
 
@@ -247,21 +247,43 @@ public class AnnotatedBeanDefinitionReader {
 	 * {@link BeanDefinition}, e.g. setting a lazy-init or primary flag
 	 * @since 5.0
 	 */
+	// forcus 核心注册逻辑 -- 通过beanClass注册
+	// forcus 这是一个很核心的类,后面应该会经常看到
 	private <T> void doRegisterBean(Class<T> beanClass, @Nullable String name,
 			@Nullable Class<? extends Annotation>[] qualifiers, @Nullable Supplier<T> supplier,
 			@Nullable BeanDefinitionCustomizer[] customizers) {
-
+     	// forcus 创建
 		AnnotatedGenericBeanDefinition abd = new AnnotatedGenericBeanDefinition(beanClass);
+		// forcus 条件评估(@Conditional注解处理)
+		/*
+			支持的条件注解:
+				- @ConditionalOnProperty(name = "feature.enabled")
+				- @ConditionalOnClass(DataSource.class)
+				- @ConditionalOnMissingBean(UserService.class)
+				- @ConditionalOnProfile("dev")
+		 */
 		if (this.conditionEvaluator.shouldSkip(abd.getMetadata())) {
-			return;
+			return; // 如果条件不满足,则跳过注册
 		}
-
+  		// forcus 设置supplier
+		/*
+			知识补充：supplier是什么呢？
+		 */
 		abd.setInstanceSupplier(supplier);
+		// forcus 解析作用域(@Scope注解处理)
+		/*
+			singleton、prototype、request、session/.../自定义作用域(很少用到)
+		 */
 		ScopeMetadata scopeMetadata = this.scopeMetadataResolver.resolveScopeMetadata(abd);
 		abd.setScope(scopeMetadata.getScopeName());
+		// forcus 生成beanName
+		/*
+			默认的命名规则为: 类名首字母小写
+		 */
 		String beanName = (name != null ? name : this.beanNameGenerator.generateBeanName(abd, this.registry));
-
+		// forcus 处理通用注解(@Lazy、@Primary、@DependsOn等注解处理)
 		AnnotationConfigUtils.processCommonDefinitionAnnotations(abd);
+		//  处理qualifiers
 		if (qualifiers != null) {
 			for (Class<? extends Annotation> qualifier : qualifiers) {
 				if (Primary.class == qualifier) {
@@ -275,14 +297,17 @@ public class AnnotatedBeanDefinitionReader {
 				}
 			}
 		}
+		//  应用自定义器
 		if (customizers != null) {
 			for (BeanDefinitionCustomizer customizer : customizers) {
 				customizer.customize(abd);
 			}
 		}
-
+		// forcus 使用 BeanDefinitionHolder 来包装创建的 bf 和 beanName
 		BeanDefinitionHolder definitionHolder = new BeanDefinitionHolder(abd, beanName);
+		//  设置代理模式
 		definitionHolder = AnnotationConfigUtils.applyScopedProxyMode(scopeMetadata, definitionHolder, this.registry);
+		// forcus 注册到容器中
 		BeanDefinitionReaderUtils.registerBeanDefinition(definitionHolder, this.registry);
 	}
 

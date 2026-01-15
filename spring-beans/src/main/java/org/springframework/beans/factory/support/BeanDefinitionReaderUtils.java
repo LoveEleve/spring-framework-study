@@ -62,8 +62,7 @@ public abstract class BeanDefinitionReaderUtils {
 		if (className != null) {
 			if (classLoader != null) {
 				bd.setBeanClass(ClassUtils.forName(className, classLoader));
-			}
-			else {
+			} else {
 				bd.setBeanClassName(className);
 			}
 		}
@@ -108,8 +107,7 @@ public abstract class BeanDefinitionReaderUtils {
 		if (generatedBeanName == null) {
 			if (definition.getParentName() != null) {
 				generatedBeanName = definition.getParentName() + "$child";
-			}
-			else if (definition.getFactoryBeanName() != null) {
+			} else if (definition.getFactoryBeanName() != null) {
 				generatedBeanName = definition.getFactoryBeanName() + "$created";
 			}
 		}
@@ -161,9 +159,16 @@ public abstract class BeanDefinitionReaderUtils {
 
 		// Register bean definition under primary name.
 		String beanName = definitionHolder.getBeanName();
+		// forcus 注册到容器中
+		/*
+			关键点：添加到两个数组中
+			 - beanDefinitionMap: beanName -> beanDefinition
+			 - beanDefinitionNames : beanName
+		 */
 		registry.registerBeanDefinition(beanName, definitionHolder.getBeanDefinition());
 
 		// Register aliases for bean name, if any.
+		// 别名处理,暂时不关心
 		String[] aliases = definitionHolder.getAliases();
 		if (aliases != null) {
 			for (String alias : aliases) {

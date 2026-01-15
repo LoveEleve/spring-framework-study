@@ -54,7 +54,7 @@ class ConditionEvaluator {
 	 * Create a new {@link ConditionEvaluator} instance.
 	 */
 	public ConditionEvaluator(@Nullable BeanDefinitionRegistry registry,
-			@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
+							  @Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
 
 		this.context = new ConditionContextImpl(registry, environment, resourceLoader);
 	}
@@ -73,15 +73,35 @@ class ConditionEvaluator {
 
 	/**
 	 * Determine if an item should be skipped based on {@code @Conditional} annotations.
-	 * @param metadata the meta data
+	 * @param metadata the meta data forcus bean's meta data
 	 * @param phase the phase of the call
 	 * @return if the item should be skipped
 	 */
 	public boolean shouldSkip(@Nullable AnnotatedTypeMetadata metadata, @Nullable ConfigurationPhase phase) {
+		// 如果没有 bean's meta data 或者 meta data 上没有 Conditional 注解，直接返回 false
+		// 返回false则代表不需要被跳过，当前bean可以被继续注册
 		if (metadata == null || !metadata.isAnnotated(Conditional.class.getName())) {
 			return false;
 		}
-
+		// forcus 非常重要的一段代码,是Spring/SpringBoot的核心(精妙设计)
+		/*
+			这是Spring的 "双阶段" 条件评估策略
+			 step-1: 在解析配置类的时候进行条件评估，forcus PARSE_CONFIGURATION
+			  - 影响范围,整个配置类及其所有内容
+			 step-2: 在注册单个Bean时进行条件评估 forcus REGISTER_BEAN
+			  - 影响范围,单个bean
+			==
+			forcus 如果phase == null,则说明是智能选择
+			==
+			 - 是配置候选者 -->  shouldSkip(metadata, PARSE_CONFIGURATION)
+			 - 是普通bean -->  shouldSkip(metadata, REGISTER_BEAN)
+			==
+			配置候选者是什么呢？
+			 成为配置候选者的3个条件:
+			  - 标注了 @Component / @ComponentScan / @Import / @ImportResource
+			  	- 这些注解保存在 candidateIndicators集合中
+			  - 或者 类中有@Bean标注的方法(这个类可以没有被上面的注解标注,也能成为配置候选者)
+		 */
 		if (phase == null) {
 			if (metadata instanceof AnnotationMetadata &&
 					ConfigurationClassUtils.isConfigurationCandidate((AnnotationMetadata) metadata)) {
@@ -89,22 +109,43 @@ class ConditionEvaluator {
 			}
 			return shouldSkip(metadata, ConfigurationPhase.REGISTER_BEAN);
 		}
-
+		// forcus 获取meta data 中的所有条件实例(保存在 conditions 集合中)
 		List<Condition> conditions = new ArrayList<>();
+		/*
+			@Conditional(A.class,B.class.C.class)
+			1. getConditionClasses(metadata) : 这里返回的是 List<String[]> --> 提取类名 [A,B,C]
+			2. 内部for()循环的处理,对于每一个类名,都会封装成一个 Condition 对象，然后添加到 conditions 集合中去
+		 */
 		for (String[] conditionClasses : getConditionClasses(metadata)) {
 			for (String conditionClass : conditionClasses) {
 				Condition condition = getCondition(conditionClass, this.context.getClassLoader());
 				conditions.add(condition);
 			}
 		}
-
+		// 支持优先级排序
 		AnnotationAwareOrderComparator.sort(conditions);
-
+		// forcus 依次处理所有条件实例
+		/*
+			forcus 这里涉及到了两个类型，不同的条件类型,会有不同的行为处理
+			 - Condition ：此时的 requiredPhase = null
+			 - ConfigurationCondition : 该类型内部有一个枚举类,定义两个阶段：PARSE_CONFIGURATION / REGISTER_BEAN
+			   - 可以通过 getConfigurationPhase() 来返回当前 ConfigurationCondition对象的 Phase
+		 */
 		for (Condition condition : conditions) {
 			ConfigurationPhase requiredPhase = null;
 			if (condition instanceof ConfigurationCondition) {
 				requiredPhase = ((ConfigurationCondition) condition).getConfigurationPhase();
 			}
+			/*
+				- (requiredPhase == null || requiredPhase == phase)
+				 - requiredPhase == null : 没有要求,任何阶段都可以进行评估 --> 调用condition.matches()来进行条件匹配
+				 - requiredPhase!=null , requiredPhase == phase : 阶段匹配 -->  调用condition.matches()来进行条件匹配
+				 - requiredPhase!=null , requiredPhase != phase : 阶段不匹配,跳过, 不会调用condition.matches()来进行匹配
+				 forcus 当 condition.matches(this.context, metadata) 返回false时,代表匹配失败,也就是条件不满足,不能继续注册，所以返回true(代表should skip)
+				 forcus 而条件变量是跟着某个类的，比如在类上标注相关注解和在@Bean方法上标注相关注解，所以这里和类也有关系
+				 forcus 比如如果是在标注了这些注解@Component / @ComponentScan / @Import / @ImportResource的类上，标记了@Conditionxxx,那么就是配置阶段
+				 forcus 否则就是Bean阶段
+			 */
 			if ((requiredPhase == null || requiredPhase == phase) && !condition.matches(this.context, metadata)) {
 				return true;
 			}
@@ -145,7 +186,7 @@ class ConditionEvaluator {
 		private final ClassLoader classLoader;
 
 		public ConditionContextImpl(@Nullable BeanDefinitionRegistry registry,
-				@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
+									@Nullable Environment environment, @Nullable ResourceLoader resourceLoader) {
 
 			this.registry = registry;
 			this.beanFactory = deduceBeanFactory(registry);
@@ -181,7 +222,7 @@ class ConditionEvaluator {
 
 		@Nullable
 		private ClassLoader deduceClassLoader(@Nullable ResourceLoader resourceLoader,
-				@Nullable ConfigurableListableBeanFactory beanFactory) {
+											  @Nullable ConfigurableListableBeanFactory beanFactory) {
 
 			if (resourceLoader != null) {
 				ClassLoader classLoader = resourceLoader.getClassLoader();

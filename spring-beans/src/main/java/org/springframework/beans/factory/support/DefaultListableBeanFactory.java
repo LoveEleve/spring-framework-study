@@ -158,6 +158,23 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private AutowireCandidateResolver autowireCandidateResolver = SimpleAutowireCandidateResolver.INSTANCE;
 
 	/** Map from dependency type to corresponding autowired value. */
+	// 存储 class(类型) -> 实例对象的映射, 用于依赖注入时的特殊解析
+	/*
+		特点:
+		 - 这些对象不是通过 BeanDefinition 定义的
+		 - 这些对象也不是通过 registerSingleton 注册的
+		 - 它们是"可解析的依赖"，专门用于 @Autowired 注入
+		 在refresh()开始时会注册4个值:
+		   ResourceLoader.class → AnnotationConfigApplicationContext :
+		   		支持 @Autowired ResourceLoader loader(用于加载资源文件)
+		   ApplicationEventPublisher.class → AnnotationConfigApplicationContext：
+		   		支持 @Autowired ApplicationEventPublisher publisher; (发布应用事件)
+		   BeanFactory.class → DefaultListableBeanFactory
+		   		支持 @Autowired BeanFactory factory;(用于支持以编程方式获取Bean)
+		   ApplicationContext.class → AnnotationConfigApplicationContext :
+		   		支持 @Autowired ApplicationContext ctx;  (获取容器的完整功能（环境、资源、事件、Bean等）)
+
+	 */
 	private final Map<Class<?>, Object> resolvableDependencies = new ConcurrentHashMap<>(16);
 
 	/** Map of bean definition objects, keyed by bean name. */
@@ -176,6 +193,24 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 	private volatile List<String> beanDefinitionNames = new ArrayList<>(256);
 
 	/** List of names of manually registered singletons, in registration order. */
+	/*
+		记录通过 registerSingleton() 方法"手动注册"的单例 Bean 名称 (forcus 这里存储的name,但是在一级缓存中是会存储bean实例的!!,不要以为只存储name)
+		在初始时默认手动注册4个值:
+		 1. environment -> StandardEnvironment
+				- 统一的环境抽象，包含 profiles 和 properties
+				- 管理 active profiles（如 dev, prod, test）
+				- 统一访问各种属性源（配置文件、系统属性、环境变量等）
+		 2. systemProperties -> Map<String, Object> -> getEnvironment().getSystemProperties()
+		 		- jvm系统属性
+		 3. systemEnvironment -> Map<String, Object> -> getEnvironment().getSystemEnvironment()
+		 		- os环境变量
+		 4. applicationStartup -> ApplicationStartup(默认是DefaultApplicationStartup)
+		 		- spring5.3.x版本新增
+		 		- 实现类
+		 		 - DefaultApplicationStartup（默认，空实现）
+		 		 - BufferingApplicationStartup（记录启动步骤）
+		 		 - FlightRecorderApplicationStartup（JFR 集成）
+	 */
 	private volatile Set<String> manualSingletonNames = new LinkedHashSet<>(16);
 
 	/** Cached array of bean definition names in case of frozen configuration. */
@@ -1186,8 +1221,36 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 	@Override
 	public void registerSingleton(String beanName, Object singletonObject) throws IllegalStateException {
+		// forcus 调用父类方法，将对象放入三级缓存
 		super.registerSingleton(beanName, singletonObject);
+		// forcus 更新手动单例名称集合
+		// 如果该 beanName 不在 beanDefinitionMap 中，则添加到 manualSingletonNames
+		/*
+			为什么要维护 manualSingletonNames 呢？ -- 为了维护手动注册的单例Bean名称
+			核心原因: 在Spring容器中有两种Bean的注册方式
+			 1.BeanDefinition 注册（主流方式）
+			  - xml配置 / 注解配置(@Component/...)
+			  - 存储在 beanDefinitionMap + beanDefinitionNames
+			  - 特点是: 先注册定义，后实例化对象
+
+			 2.手动单例注册
+			  - beanFactory.registerSingleton("name", object)
+			  - 存储在 singletonObjects（一级缓存）+ manualSingletonNames
+			  - 特点是: 直接注册已创建好的对象，没有 BeanDefinition
+			===
+			spring将两者分开维护
+		 */
 		updateManualSingletonNames(set -> set.add(beanName), set -> !this.beanDefinitionMap.containsKey(beanName));
+		// forcus 清除类型缓存
+		// 清除按类型查找的缓存（因为新增了 Bean，缓存失效）
+		/*
+ 			该方法会清除两个缓存对象: 都是 Map<Class<?>, String[]> 类型的
+ 			本质上是因为Spring的诟病：太慢了, 而通过类型查找bean实例又是一个高频的操作,所以在这里要进行缓存
+ 			 1. allBeanNamesByType ： 匹配某类型的所有 Bean 名称的数组 --> 包含单例和非单例
+			 2. singletonBeanNamesByType : 匹配该类型的单例 Bean 名称的数组 --> 仅单例
+			而引入了缓存,那么当数据变更的时候,就需要及时的清除缓存(否则可能会引入数据不一致)
+			在这里 singletonObjects 可以看作是mysql ， 其他map可以看作是 redis
+		 */
 		clearByTypeCache();
 	}
 

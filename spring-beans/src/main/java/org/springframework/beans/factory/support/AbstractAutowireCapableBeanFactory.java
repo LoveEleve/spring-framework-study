@@ -150,6 +150,21 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * Dependency interfaces to ignore on dependency check and autowire, as Set of
 	 * Class objects. By default, only the BeanFactory interface is ignored.
 	 */
+	/*
+		forcus 告诉 Spring 容器：这些接口的依赖不要通过 @Autowired 自动注入,这些接口有专门的回调机制来注入依赖（通过某个BPP在特定的时机通过setxxx()来进行回调注入）
+		在refresh()时,一共注册了10个,第一次注册3个，第二次注册7个
+		 - BeanNameAware
+		 - BeanFactoryAware
+		 - BeanClassLoaderAware
+		 ===
+		 - EnvironmentAware
+		 - EmbeddedValueResolverAware
+		 - ResourceLoaderAware
+		 - ApplicationEventPublisherAware
+		 - MessageSourceAware
+		 - ApplicationContextAware
+		 - ApplicationStartupAware
+	 */
 	private final Set<Class<?>> ignoredDependencyInterfaces = new HashSet<>();
 
 	/**

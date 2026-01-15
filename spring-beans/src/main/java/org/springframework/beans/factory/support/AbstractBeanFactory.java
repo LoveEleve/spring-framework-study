@@ -157,6 +157,16 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	private final List<StringValueResolver> embeddedValueResolvers = new CopyOnWriteArrayList<>();
 
 	/** BeanPostProcessors to apply. */
+	/*
+		forcus 存储所有的BPP实例,在bean实例化前后
+		初始时会存储两个BPP实例
+		 - ApplicationContextAwareProcessor ： 作用 -> 处理 7 种 Aware 接口的回调注入
+		 - ApplicationListenerDetector : 作用 -> 自动检测并注册 ApplicationListener
+		  - 检测 Bean 是否实现了 ApplicationListener 接口
+		  - 如果是单例，自动添加到事件广播器中
+		  - postProcessBeforeInitialization() - 记录单例 Bean
+		  - postProcessAfterInitialization() - 注册到广播器
+	 */
 	private final List<BeanPostProcessor> beanPostProcessors = new BeanPostProcessorCacheAwareList();
 
 	/** Cache of pre-filtered post-processors. */

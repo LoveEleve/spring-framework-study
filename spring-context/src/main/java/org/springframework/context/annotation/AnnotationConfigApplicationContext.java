@@ -105,8 +105,8 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 	 */
 	public AnnotationConfigApplicationContext(Class<?>... componentClasses) {
 		this(); // forcus 图解-1
-		register(componentClasses);
-		refresh();
+		register(componentClasses); // forcus
+		refresh(); // forcus
 	}
 
 	/**
@@ -181,6 +181,17 @@ public class AnnotationConfigApplicationContext extends GenericApplicationContex
 		Assert.notEmpty(componentClasses, "At least one component class must be specified");
 		StartupStep registerComponentClass = getApplicationStartup().start("spring.context.component-classes.register")
 				.tag("classes", () -> Arrays.toString(componentClasses));
+		// forcus 核心注册逻辑
+		/*
+			核心操作：
+			 1.解析类上的注解(比如@Conditional,@Scope,/....)
+			  	- 感觉这里要核心关注：@Conditional & @DependsOn
+			  		- @DependsOn: 显示指定Bean的依赖关系,确保被依赖的Bean在当前Bean之前被创建
+			  		- @Conditional: 只有当指定的条件满足时,当前Bean实例才会被注册到容器中 - 这里有个核心方法:match()
+			  			- 在Spring中的工作时机: doRegisterBean() -> conditionEvaluator.shouldSkip(xxx)
+			  	- forcus 这两个注解,被SpringBoot扩展了,是SpringBoot的核心注解
+			 2.如果满足条件的话,那么将类注册到BeanFactory中(两个集合中)
+		 */
 		this.reader.register(componentClasses);
 		registerComponentClass.end();
 	}

@@ -156,7 +156,7 @@ return new PathMatchingResourcePatternResolver(this);
 
 ### 13. DefaultListableBeanFactory beanFactory ⭐⭐⭐⭐⭐
 ```java
-private final DefaultListableBeanFactory beanFactory;
+private final DefaultListableBeanFactory beanFactory ;
 
 public GenericApplicationContext() {
     this.beanFactory = new DefaultListableBeanFactory();

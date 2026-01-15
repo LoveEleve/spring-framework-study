@@ -231,19 +231,24 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	/**
 	 * Derive further bean definitions from the configuration classes in the registry.
 	 */
+	// forcus BDRPP 的扩展方法
+	// 该方法负责将配置类转换为完整的BeanDefinition
 	@Override
 	public void postProcessBeanDefinitionRegistry(BeanDefinitionRegistry registry) {
 		int registryId = System.identityHashCode(registry);
+		// forcus registriesPostProcessed: 该集合用来记录已经执行过 postProcessBeanDefinitionRegistry()方法的 BDRPP，避免重复执行
 		if (this.registriesPostProcessed.contains(registryId)) {
 			throw new IllegalStateException(
 					"postProcessBeanDefinitionRegistry already called on this post-processor against " + registry);
 		}
+		// forcus factoriesPostProcessed: 该集合用来记录已经执行过 postProcessBeanFactory()方法的 BFPP , 避免重复执行
 		if (this.factoriesPostProcessed.contains(registryId)) {
 			throw new IllegalStateException(
 					"postProcessBeanFactory already called on this post-processor against " + registry);
 		}
+		// forcus 添加到 registriesPostProcessed集合中
 		this.registriesPostProcessed.add(registryId);
-
+		// forcus 核心方法
 		processConfigBeanDefinitions(registry);
 	}
 
@@ -251,9 +256,11 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 * Prepare the Configuration classes for servicing bean requests at runtime
 	 * by replacing them with CGLIB-enhanced subclasses.
 	 */
+	// forcus BFPP的扩展方法
 	@Override
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
 		int factoryId = System.identityHashCode(beanFactory);
+
 		if (this.factoriesPostProcessed.contains(factoryId)) {
 			throw new IllegalStateException(
 					"postProcessBeanFactory already called on this post-processor against " + beanFactory);
@@ -274,16 +281,30 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 * {@link Configuration} classes.
 	 */
 	public void processConfigBeanDefinitions(BeanDefinitionRegistry registry) {
+		// forcus step-1 : 查找配置类候选者
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
+		// 从容器中获取所有的已经注册了的 BeanName
+		/*
+			在这里默认是6个(5个提前注册的后置处理器)
+			1个就是我的DebugApplication
+		 */
 		String[] candidateNames = registry.getBeanDefinitionNames();
-
+		// 依次处理每个beanName
 		for (String beanName : candidateNames) {
+			// 从容器中获取beanDef
 			BeanDefinition beanDef = registry.getBeanDefinition(beanName);
+			// forcus 跳过已经处理过的配置类 - 通过 ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE 标记
+			// 但是目前是初始化阶段,所以所有的beanDef都没有被处理过
 			if (beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE) != null) {
 				if (logger.isDebugEnabled()) {
 					logger.debug("Bean definition has already been processed as a configuration class: " + beanDef);
 				}
 			}
+			// forcus 调用 checkConfigurationClassCandidate(beanDef,xxx) 检查是否为配置类
+			// 如果是配置类,那么添加到 候选者列表configCandidates中 ( forcus 在这里不是添加beanName,而是创建一个BeanDefinitionHolder)
+			/*
+				配置类识别逻辑:
+			 */
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
 				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
 			}
