@@ -4,6 +4,8 @@ import org.springframework.context.annotation.*;
 
 @Configuration
 @ComponentScan("com.debug.simpleDebug")
+@EnableAutoConfiguration
+@Import(B.class)
 public class DebugApplication {
 	//
 	public static void main(String[] args) {

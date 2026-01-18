@@ -303,19 +303,21 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			// forcus 调用 checkConfigurationClassCandidate(beanDef,xxx) 检查是否为配置类
 			// 如果是配置类,那么添加到 候选者列表configCandidates中 ( forcus 在这里不是添加beanName,而是创建一个BeanDefinitionHolder)
 			/*
-				配置类识别逻辑:
+				forcus 在这里面还会区分配置类的类型 - Full / Lite
 			 */
 			else if (ConfigurationClassUtils.checkConfigurationClassCandidate(beanDef, this.metadataReaderFactory)) {
-				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName));
+				configCandidates.add(new BeanDefinitionHolder(beanDef, beanName)); // 添加到集合中
 			}
 		}
 
 		// Return immediately if no @Configuration classes were found
+		// 如果没有配置类，那么直接返回了
 		if (configCandidates.isEmpty()) {
 			return;
 		}
 
 		// Sort by previously determined @Order value, if applicable
+		// 对上面找到的配置类进行排序
 		configCandidates.sort((bd1, bd2) -> {
 			int i1 = ConfigurationClassUtils.getOrder(bd1.getBeanDefinition());
 			int i2 = ConfigurationClassUtils.getOrder(bd2.getBeanDefinition());
@@ -323,6 +325,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		});
 
 		// Detect any custom bean name generation strategy supplied through the enclosing application context
+		// 检测并应用用户自定义的 Bean 名称生成策略
 		SingletonBeanRegistry sbr = null;
 		if (registry instanceof SingletonBeanRegistry) {
 			sbr = (SingletonBeanRegistry) registry;
@@ -341,26 +344,59 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// Parse each @Configuration class
+		// 创建配置类解析器
 		ConfigurationClassParser parser = new ConfigurationClassParser(
 				this.metadataReaderFactory, this.problemReporter, this.environment,
 				this.resourceLoader, this.componentScanBeanNameGenerator, registry);
-
+		// forcus 创建两个集合
+		/*
+			candidates: 待解析的配置类(bdh类) - 来自上面的 configCandidates
+			alreadyParsed: 用来记录已经解析过的配置类
+		 */
+		// 将上面找到的配置类候选者添加到 candidates集合中 (list -> set,使用set保证顺序且不重复)
+		// 通常只有一个配置类(那就是启动配置类 - 在这里是DebugApplication 所对应的 BeanDefinitionHolder)
 		Set<BeanDefinitionHolder> candidates = new LinkedHashSet<>(configCandidates);
+		// alreadyParsed: 用来记录已经解析过的配置类
 		Set<ConfigurationClass> alreadyParsed = new HashSet<>(configCandidates.size());
+		/*
+			forcus 准备开始解析配置类
+			==
+			但是为什么要用do-while()循环呢？
+			 - 这是因为在配置类(@Configuration)上可能会标注@Import/@ComponentScan 等注解
+			 - 这些注解可能会引入新的配置类
+			 - 所以需要循环解析，直到没有新的配置类引入为止
+		 */
 		do {
 			StartupStep processConfig = this.applicationStartup.start("spring.context.config-classes.parse");
+			// forcus 解析配置类, 传入的参数为：candidates(也就是上面找到的所有配置类)
+			/*
+				在这里面的核心动作为:
+				 - 处理@ComponentScan (扫描并且注册组件)
+				 - 处理@Import (导入其他配置类)
+				 - 处理@ImportResource (导入XML文件)
+				 - 处理@Bean方法(记录但是不会立即注册)
+				 - 递归处理所有相关的配置类
+			 */
 			parser.parse(candidates);
 			parser.validate();
-
+			// forcus 获取所有解析后的配置类
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
+			// 从 configClasses 中移除已经处理过的配置类，只保留本次新解析出来的配置类，避免重复处理
 			configClasses.removeAll(alreadyParsed);
 
 			// Read the model and create bean definitions based on its content
+			// 创建 BeanDefinition 读取器
 			if (this.reader == null) {
 				this.reader = new ConfigurationClassBeanDefinitionReader(
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
 						this.importBeanNameGenerator, parser.getImportRegistry());
 			}
+
+			// forcus 加载 BeanDefinition
+			/*
+				核心方法，将解析后的配置类转换为 BeanDefinition 并注册到容器中
+				 -
+			 */
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
 			processConfig.tag("classCount", () -> String.valueOf(configClasses.size())).end();

@@ -58,6 +58,7 @@ import org.springframework.core.type.AnnotationMetadata;
  * @see ImportSelector
  * @see Configuration
  */
+// forcus
 public interface ImportBeanDefinitionRegistrar {
 
 	/**

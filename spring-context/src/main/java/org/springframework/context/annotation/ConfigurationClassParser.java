@@ -141,6 +141,13 @@ class ConfigurationClassParser {
 	private final List<String> propertySourceNames = new ArrayList<>();
 
 	private final ImportStack importStack = new ImportStack();
+	// forcus
+	/*
+		DeferredImportSelectorHandler
+		{
+			List<DeferredImportSelectorHolder> deferredImportSelectors = new ArrayList<>(); 该集合记录着所有的DeferredImportSelector!
+		}
+	 */
 
 	private final DeferredImportSelectorHandler deferredImportSelectorHandler = new DeferredImportSelectorHandler();
 
@@ -165,11 +172,21 @@ class ConfigurationClassParser {
 		this.conditionEvaluator = new ConditionEvaluator(registry, environment, resourceLoader);
 	}
 
-
+	// forcus 解析候选配置类
 	public void parse(Set<BeanDefinitionHolder> configCandidates) {
+		// 遍历所有的配置类对应的 BeanDefinitionHolder 对象
 		for (BeanDefinitionHolder holder : configCandidates) {
-			BeanDefinition bd = holder.getBeanDefinition();
+			BeanDefinition bd = holder.getBeanDefinition(); // 获取对应的 BeanDefinition
 			try {
+				/*
+					====
+					 forcus 根据不同的 BeanDefinition 类型 使用不同的方式进行解析
+					  1. AnnotatedBeanDefinition 类型的 : 这是最常见的bf类型(注解驱动)，那么可以直接使用已经解析好的元数据
+					  2. AbstractBeanDefinition 类型的,并且有对应的beanClass属性，
+					  3. 只有类名
+					  不同的情况调用不同的parse()重载方法
+					====
+				 */
 				if (bd instanceof AnnotatedBeanDefinition) {
 					parse(((AnnotatedBeanDefinition) bd).getMetadata(), holder.getBeanName());
 				}
@@ -188,7 +205,13 @@ class ConfigurationClassParser {
 						"Failed to parse configuration class [" + bd.getBeanClassName() + "]", ex);
 			}
 		}
-
+		// forcus 处理延迟的ImportSelector，这是解析的最后一步
+		/*
+			1. 执行的时机,在所有的配置类都解析完毕后
+			2. 处理实现了DeferredImportSelector接口的ImportSelector
+			3. 典型应用： Spring Boot的自动配置就是通过DeferredImportSelector实现的
+			4. 为什么延迟： 确保所有常规配置类都处理完毕后，再处理可能依赖这些配置的自动配置
+		 */
 		this.deferredImportSelectorHandler.process();
 	}
 
@@ -220,36 +243,73 @@ class ConfigurationClassParser {
 		return this.configurationClasses.keySet();
 	}
 
-
+	// forcus 解析配置类
+	/*
+		参数:
+		 - configClass:要解析的配置类
+		 - filter:过滤器，用于排除某些类（通常是 DEFAULT_EXCLUSION_FILTER ）
+	 */
 	protected void processConfigurationClass(ConfigurationClass configClass, Predicate<String> filter) throws IOException {
+		// forcus 判断是否需要跳过,此时正处于「解析配置类阶段」 -- PARSE_CONFIGURATION
+		// 处理@Conditional注解
 		if (this.conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.PARSE_CONFIGURATION)) {
+			// 如果条件不满足，直接返回,不再处理这个配置类
 			return;
 		}
-
+		// forcus  从已处理的配置类集合中查找是否已经存在相同的配置类
+		// configurationClasses : 用于存储所有已经处理过的配置类
 		ConfigurationClass existingClass = this.configurationClasses.get(configClass);
+		// forcus 对于已经处理过的配置类
 		if (existingClass != null) {
-			if (configClass.isImported()) {
-				if (existingClass.isImported()) {
-					existingClass.mergeImportedBy(configClass);
+			// forcus-1 当前配置类是通过@Import导入的
+			/*
+				@Configuration
+				@Import(CommonConfig.class)
+				public class AppConfig1 { }
+
+				@Configuration
+				@Import(CommonConfig.class)  // 同一个CommonConfig被多次导入
+				public class AppConfig2 { }
+			 */
+			if (configClass.isImported()) { //  isImported() 判断配置类是否通过@Import注解导入
+				if (existingClass.isImported()) { // 已存在的也是导入的
+					existingClass.mergeImportedBy(configClass); // forcus  同一个配置类被多个地方通过@Import导入,合并导入信息，记录所有导入来源
 				}
 				// Otherwise ignore new imported config class; existing non-imported class overrides it.
-				return;
+				return; // 已存在的不是导入的,那么直接返回
 			}
+			// forcus 当前配置类不是导入的 , 发现了显式的Bean定义，可能要替换之前导入的配置类
+			// 原则: 显式定义的配置类优先级高于导入的配置类
 			else {
 				// Explicit bean definition found, probably replacing an import.
 				// Let's remove the old one and go with the new one.
-				this.configurationClasses.remove(configClass);
-				this.knownSuperclasses.values().removeIf(configClass::equals);
+				this.configurationClasses.remove(configClass); // 从已处理集合中移除旧的配置类
+				this.knownSuperclasses.values().removeIf(configClass::equals); // 从已知父类集合中移除相关引用
 			}
 		}
 
+		/*
+			=====
+				forcus 递归处理配置类及其父类层次
+			=====
+		 */
 		// Recursively process the configuration class and its superclass hierarchy.
-		SourceClass sourceClass = asSourceClass(configClass, filter);
+		/*
+			这里为什么要用do-while()?
+			 - 处理继承层次： 配置类可能有父类，需要递归处理整个继承链
+			 - 返回值机制： doProcessConfigurationClass返回父类的SourceClass，如果没有父类返回null
+		 */
+		SourceClass sourceClass = asSourceClass(configClass, filter); // 创建SourceClass
 		do {
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass, filter);
 		}
 		while (sourceClass != null);
-
+		// forcus 注册处理完成的配置类
+		/*
+			 将处理完成的配置类添加到已处理集合中
+			 Key和Value都是同一个对象： 这是因为ConfigurationClass重写了equals()和hashCode()方法
+			 作用： 标记该配置类已经处理完成，避免重复处理
+		 */
 		this.configurationClasses.put(configClass, configClass);
 	}
 
@@ -261,17 +321,69 @@ class ConfigurationClassParser {
 	 * @param sourceClass a source class
 	 * @return the superclass, or {@code null} if none found or previously processed
 	 */
+	/*
+		forcus Spring 配置类解析的核心实现
+		===
+		 - configClass：正在构建的配置类对象，用于收集解析结果
+		 - sourceClass：当前正在处理的源类（可能是配置类本身或其父类）
+		 - filter：类名过滤器，用于排除某些不需要处理的类
+		 - 返回值： 父类的SourceClass对象，如果没有需要处理的父类则返回null
+	 */
 	@Nullable
 	protected final SourceClass doProcessConfigurationClass(
 			ConfigurationClass configClass, SourceClass sourceClass, Predicate<String> filter)
 			throws IOException {
+		// forcus-1 处理嵌套类
+		// 场景如下,但是几乎不会出现,可以不用关心嵌套类的处理
+		/*
+			@Configuration
+			public class OuterConfig {
 
-		if (configClass.getMetadata().isAnnotated(Component.class.getName())) {
+				@Configuration
+				static class InnerConfig {  // 嵌套配置类
+					@Bean
+					public SomeService someService() {
+						return new SomeService();
+					}
+				}
+			}
+		 */
+		if (configClass.getMetadata().isAnnotated(Component.class.getName())) { // forcus skip
 			// Recursively process any member (nested) classes first
 			processMemberClasses(configClass, sourceClass, filter);
 		}
 
 		// Process any @PropertySource annotations
+		// forcus-2 处理 @PropertySource 注解
+		/*
+		 	@PropertySource 介绍:
+		 	 该注解的作用是将外部属性文件加载到 Spring 的 Environment 中，使得可以通过 @Value 或 Environment.getProperty() 来访问这些属性
+		 	核心功能:
+		 	 - 加载属性文件：指定一个或多个 .properties 或 .yml 文件的位置
+		 	 - 注入到环境：将文件中的键值对添加到 Spring 的 Environment 中
+		 	 - 支持占位符解析：可以在配置类中使用 ${property.name} 引用这些属性
+		 	==== 一个简单的case, 这个注解很重要,但是具体如何解析的可以不用关心,了解即可
+				@Configuration
+				@PropertySource("classpath:application.properties")
+				public class AppConfig {
+
+					@Value("${database.url}")
+					private String databaseUrl;
+
+					@Bean
+					public DataSource dataSource() {
+						// 使用 databaseUrl 创建数据源
+					}
+				}
+		 */
+		/*
+			处理的基本流程:
+			 - 解析注解获取文件路径、编码等属性
+			 - 解析路径中的占位符（如 ${config.dir}/app.properties）
+			 - 通过 ResourceLoader 加载资源文件
+			 - 使用 PropertySourceFactory 创建 PropertySource 对象
+			 - 将 PropertySource 添加到 Environment 的 MutablePropertySources 中
+		 */
 		for (AnnotationAttributes propertySource : AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), PropertySources.class,
 				org.springframework.context.annotation.PropertySource.class)) {
@@ -282,23 +394,65 @@ class ConfigurationClassParser {
 				logger.info("Ignoring @PropertySource annotation on [" + sourceClass.getMetadata().getClassName() +
 						"]. Reason: Environment must implement ConfigurableEnvironment");
 			}
-		}
+		}// forcus skip
 
 		// Process any @ComponentScan annotations
+		// forcus -3 处理 @ComponentScan 注解
+		/*
+			@ComponentScan 介绍:
+			 自动扫描指定包及其子包下的组件类（带有 @Component、@Service、@Repository、@Controller, @Configuration , 等注解的类），并将它们注册为 Spring Bean。
+
+		 */
+		/*
+			使用方式:
+				@ComponentScan(
+					basePackages = {"com.example.service", "com.example.dao"},  // 指定扫描的包
+					basePackageClasses = {MyService.class},  // 通过类指定包（类型安全）
+
+					includeFilters = @Filter(  // 包含过滤器
+					type = FilterType.ANNOTATION,
+					classes = MyCustomAnnotation.class
+					),
+
+					excludeFilters = @Filter(  // 排除过滤器
+					type = FilterType.ASSIGNABLE_TYPE,
+					classes = ExcludedClass.class
+					),
+					useDefaultFilters = true,  // 是否使用默认过滤器（@Component等）
+
+					nameGenerator = MyBeanNameGenerator.class,  // 自定义Bean名称生成器
+
+					scopeResolver = MyScopeMetadataResolver.class,  // 自定义作用域解析器
+
+					lazyInit = true  // 是否延迟初始化
+				)
+		 */
 		Set<AnnotationAttributes> componentScans = AnnotationConfigUtils.attributesForRepeatable(
 				sourceClass.getMetadata(), ComponentScans.class, ComponentScan.class);
+		// forcus 确保有@ComponentScan注解,并且判断是否需要跳过，此时处于 ConfigurationPhase.REGISTER_BEAN 阶段
 		if (!componentScans.isEmpty() &&
 				!this.conditionEvaluator.shouldSkip(sourceClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)) {
+			// 没有被跳过
 			for (AnnotationAttributes componentScan : componentScans) {
 				// The config class is annotated with @ComponentScan -> perform the scan immediately
+				// forcus 返回扫描到的所有Bean定义 ( scannedBeanDefinitions )
 				Set<BeanDefinitionHolder> scannedBeanDefinitions =
 						this.componentScanParser.parse(componentScan, sourceClass.getMetadata().getClassName());
 				// Check the set of scanned definitions for any further config classes and parse recursively if needed
+				// forcus 递归处理所有扫描到的Bean定义
 				for (BeanDefinitionHolder holder : scannedBeanDefinitions) {
-					BeanDefinition bdCand = holder.getBeanDefinition().getOriginatingBeanDefinition();
+					BeanDefinition bdCand = holder.getBeanDefinition().getOriginatingBeanDefinition(); // forcus 获取原始BeanDefinition（处理代理情况）
 					if (bdCand == null) {
-						bdCand = holder.getBeanDefinition();
+						bdCand = holder.getBeanDefinition(); // 如果没有原始定义，使用当前定义
 					}
+					// forcus 检查是否为配置类候选者,如果是,那么递归解析
+					/*
+							@Configuration
+							@ComponentScan("com.example.config")  // 扫描包中可能有其他@Configuration类
+							public class AppConfig {
+								// 扫描到的其他配置类会被递归处理
+							}
+					 */
 					if (ConfigurationClassUtils.checkConfigurationClassCandidate(bdCand, this.metadataReaderFactory)) {
 						parse(bdCand.getBeanClassName(), holder.getBeanName());
 					}
@@ -307,9 +461,48 @@ class ConfigurationClassParser {
 		}
 
 		// Process any @Import annotations
+		// forcus -4 处理 @Import 注解
+		/*
+			在Spring中,支持三种方式导入配置类:
+				- @Import(DataSourceConfig.class):导入普通配置类(这个配置类就是单纯的被@Configuration标注了)
+				- @Import(MyImportSelector.class):导入 ImportSelector 实现类(该类实现了ImportSelector接口)
+				- @Import(MyRegistrar.class)：导入 ImportBeanDefinitionRegistrar 实现类
+		    forcus ImportSelector & ImportBeanDefinitionRegistrar 介绍
+		    forcus 除了这两个接口外,还有另外一个 ： DeferredImportSelector(ImportSelector的子类)，这是springboot的核心
+		    ---> 可以跳转到 md/Import接口详解.md 中查看相关介绍 ～
+		 */
+		/*
+			getImports(sourceClass)：获取当前配置类上的所有@Import()注解,及其参数(也就是value值,这通常是xxx.class)
+				- 比如下面这种情况,那么在这里 getImports(sourceClass) 会获取到2个class {DataConfig.class && AutoConfigurationImportSelector.class}
+					@Target(ElementType.TYPE)
+					@Retention(RetentionPolicy.RUNTIME)
+					@Import(AutoConfigurationImportSelector.class)  // 元注解中的@Import
+					public @interface EnableAutoConfiguration {
+					}
+
+					@Configuration
+					@EnableAutoConfiguration  // 会递归收集到AutoConfigurationImportSelector
+					@Import({ DataConfig.class })  // 直接的@Import
+					public class AppConfig {
+					}
+		     processImports() - 然后就是进去处理
+		 */
+		/*
+			处理当前配置类上的@Import注解中的类(@Import(xxx.class))
+			在这里处理的是 xxx.class 类，会根据不同类型的进行不同的处理
+			 type-1:  xxx.class 是 ImportSelector 类型的
+			 	- 如果是 DeferredImportSelector类型的，则进行延迟处理
+			 	- 否则是纯种的 ImportSelector类型，那么立即递归处理返回的类
+			 type-2:  xxx.class ImportBeanDefinitionRegistrar 类型的
+			 	- 收集起来，后续统一处理
+			 type-3:  xxx.class 只是一个普通的配置类(@Configuration标注的)
+			 	- 作为配置类递归处理
+		 */
 		processImports(configClass, sourceClass, getImports(sourceClass), filter, true);
 
 		// Process any @ImportResource annotations
+		// forcus @ImportResource 注解用于在 Java 配置类中导入 XML 配置文件，实现 Java 配置和 XML 配置的混合使用
+		// 这里可以不用深入了解,因为目前几乎已经不使用xml配置了
 		AnnotationAttributes importResource =
 				AnnotationConfigUtils.attributesFor(sourceClass.getMetadata(), ImportResource.class);
 		if (importResource != null) {
@@ -322,6 +515,10 @@ class ConfigurationClassParser {
 		}
 
 		// Process individual @Bean methods
+		// forcus 收集当前配置类中所有标注了@Bean注解的方法，并将它们封装成BeanMethod对象添加到配置类中
+		/*
+
+		 */
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
 		for (MethodMetadata methodMetadata : beanMethods) {
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
@@ -559,46 +756,81 @@ class ConfigurationClassParser {
 		if (importCandidates.isEmpty()) {
 			return;
 		}
-
+ 		// 维护循环导入栈,避免循环导入,非重点
 		if (checkForCircularImports && isChainedImportOnStack(configClass)) {
 			this.problemReporter.error(new CircularImportProblem(configClass, this.importStack));
 		}
+		/*
+		 	xxx.class - 三种导入类型的处理
+		 	 - ImportSelector
+		 	   - DeferredImportSelector
+			 - ImportBeanDefinitionRegistrar
+			 - @Configuration(普通配置类)\
+			 ===>
+			 在下面的for()循环中,把代码缩起来,就能看到3种不同的处理逻辑
+		 */
 		else {
 			this.importStack.push(configClass);
 			try {
-				for (SourceClass candidate : importCandidates) {
+				for (SourceClass candidate : importCandidates) { // forcus processImports就是 配置类上所有的@Import(xx.class)导入的类,在这里循环处理
+					// forcus 处理 ImportSelector
 					if (candidate.isAssignable(ImportSelector.class)) {
 						// Candidate class is an ImportSelector -> delegate to it to determine imports
+						// 加载class并且实例化 xxx.class -> ImportSelector selector
 						Class<?> candidateClass = candidate.loadClass();
 						ImportSelector selector = ParserStrategyUtils.instantiateClass(candidateClass, ImportSelector.class,
 								this.environment, this.resourceLoader, this.registry);
+						// 处理 ImportSelector的过滤器
+						/*
+							过滤器的作用: 排除不需要处理的类,后续处理中,所有类名都会结果这个 exclusionFilter 检查
+							Spring中默认的过滤器：DEFAULT_EXCLUSION_FILTER
+							{ 排除 Java 核心注解类（如 @Retention、@Target 等 / 排除 Spring 的基础注解类 }
+								Predicate<String> DEFAULT_EXCLUSION_FILTER = className ->
+											(className.startsWith("java.lang.annotation.") || className.startsWith("org.springframework.stereotype."));
+						 */
 						Predicate<String> selectorFilter = selector.getExclusionFilter();
 						if (selectorFilter != null) {
-							exclusionFilter = exclusionFilter.or(selectorFilter);
+							exclusionFilter = exclusionFilter.or(selectorFilter); // forcus 合并过滤器,任何一个过滤器返回true,那么当前类就会被排除
 						}
+						// forcus 处理 DeferredImportSelector
 						if (selector instanceof DeferredImportSelector) {
+							// forcus 委托给 deferredImportSelectorHandler 来处理 (通常只是添加到集合中)
 							this.deferredImportSelectorHandler.handle(configClass, (DeferredImportSelector) selector);
 						}
+						// 否则,是"纯种"的 ImportSelector
 						else {
+							// forcus 调用 ImportSelector.selectImports() 方法,获取导入的类名
 							String[] importClassNames = selector.selectImports(currentSourceClass.getMetadata());
 							Collection<SourceClass> importSourceClasses = asSourceClasses(importClassNames, exclusionFilter);
+							// forcus 对返回的类名,递归调用 processImports() 方法 {ps: 这里的类名,是通过Import(xxx.class)导入的xxx.class},而前面说过,@Import(xxx.class)导入的类有三种类型
 							processImports(configClass, currentSourceClass, importSourceClasses, exclusionFilter, false);
 						}
 					}
+					// forcus 处理 ImportBeanDefinitionRegistrar
 					else if (candidate.isAssignable(ImportBeanDefinitionRegistrar.class)) {
 						// Candidate class is an ImportBeanDefinitionRegistrar ->
 						// delegate to it to register additional bean definitions
+						// 加载类并且实例化 xxx.class -> ImportBeanDefinitionRegistrar registrar
 						Class<?> candidateClass = candidate.loadClass();
 						ImportBeanDefinitionRegistrar registrar =
 								ParserStrategyUtils.instantiateClass(candidateClass, ImportBeanDefinitionRegistrar.class,
 										this.environment, this.resourceLoader, this.registry);
+						// forcus 这里也是同样,是不会立即执行的,而是添加到配置类中
+						/*
+							forcus 注意这里与 DeferredImportSelector 的区别
+							 - DeferredImportSelector 是添加到 deferredImportSelectorHandler 中
+							 - ImportBeanDefinitionRegistrar 是添加到配置类(ConfigurationClass)中的 importBeanDefinitionRegistrars 属性
+							   - 实际的执行会交给后续的 ConfigurationClassBeanDefinitionReader 执行 (Bean注册阶段执行)
+						 */
 						configClass.addImportBeanDefinitionRegistrar(registrar, currentSourceClass.getMetadata());
 					}
+					// forcus 处理 @Configuration(普通配置类)
 					else {
 						// Candidate class not an ImportSelector or ImportBeanDefinitionRegistrar ->
 						// process it as an @Configuration class
 						this.importStack.registerImport(
 								currentSourceClass.getMetadata(), candidate.getMetadata().getClassName());
+						// forcus 调用 processConfigurationClass 来解析配置类 - 复用的方法
 						processConfigurationClass(candidate.asConfigClass(configClass), exclusionFilter);
 					}
 				}
@@ -761,14 +993,16 @@ class ConfigurationClassParser {
 		 * @param importSelector the selector to handle
 		 */
 		public void handle(ConfigurationClass configClass, DeferredImportSelector importSelector) {
+			// 创建一个持有者对象，包装配置类和选择器
 			DeferredImportSelectorHolder holder = new DeferredImportSelectorHolder(configClass, importSelector);
+			// 关键判断：deferredImportSelectors 是否为 null (这种情况很少见)
 			if (this.deferredImportSelectors == null) {
 				DeferredImportSelectorGroupingHandler handler = new DeferredImportSelectorGroupingHandler();
 				handler.register(holder);
 				handler.processGroupImports();
 			}
 			else {
-				this.deferredImportSelectors.add(holder);
+				this.deferredImportSelectors.add(holder); // forcus 添加到 deferredImportSelectors 中
 			}
 		}
 

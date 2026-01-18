@@ -82,6 +82,10 @@ abstract class ConfigurationClassUtils {
 	 * @param metadataReaderFactory the current factory in use by the caller
 	 * @return whether the candidate qualifies as (any kind of) configuration class
 	 */
+	/*
+		forcus 方法概述：
+			判断一个 BeanDefinition 是否为配置类候选者，并标记其类型（Full/Lite）
+	 */
 	public static boolean checkConfigurationClassCandidate(
 			BeanDefinition beanDef, MetadataReaderFactory metadataReaderFactory) {
 
@@ -171,15 +175,30 @@ abstract class ConfigurationClassUtils {
 		}
 
 		// forcus-3 下面这段代码的核心目的:判断并且标记配置类的类型(Full / Lite)，并且设置其执行顺序
+		/*
+			为什么配置类还要区分不同的类型呢？ --> 再spring中区分为 Full 和 Lite两种类型
+			forcus spring的主要目的是为了：性能优化 和 代理行为控制
+			 - Full配置类: 条件为：@Configuration + proxyBeanMethods=true
+			   - 特点: 该配置类会被CGLIB代理增强，支持Bean方法间的调用拦截,保证单例语义
+			 - Lite配置类：@Configuration( proxyBeanMethods=false) / 或者其他注解(@Component/@ComponentScan/@Import/@ImportResource/包含@Bean方法)
+			   - 不会被CGLIB代理，不会支持Bean方法间的调用拦截，不能保证单例语义
+
+			 ===
+
+			 处理差异: 在 ConfigurationClassPostProcessor 中，只有Full配置类会被特殊处理(被增强)
+		 */
+		// 获取类元数据上的 @Configuration 注解
 		Map<String, Object> config = metadata.getAnnotationAttributes(Configuration.class.getName());
+		// forcus 如果有@Configuration注解 并且 proxyBeanMethods=true(默认值就为true),那么该配置类就是一个Full配置类
 		if (config != null && !Boolean.FALSE.equals(config.get("proxyBeanMethods"))) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_FULL);
 		}
+		// forcus 否则为Lite配置类
 		else if (config != null || isConfigurationCandidate(metadata)) {
 			beanDef.setAttribute(CONFIGURATION_CLASS_ATTRIBUTE, CONFIGURATION_CLASS_LITE);
 		}
 		else {
-			return false;
+			return false; // forcus 否则根本不是一个配置类
 		}
 
 		// It's a full or lite configuration candidate... Let's determine the order value, if any.
@@ -188,7 +207,7 @@ abstract class ConfigurationClassUtils {
 			beanDef.setAttribute(ORDER_ATTRIBUTE, order);
 		}
 
-		return true;
+		return true; // 最终返回true，代表这是一个配置类
 	}
 
 	/**

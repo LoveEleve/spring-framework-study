@@ -58,12 +58,29 @@ import org.springframework.lang.Nullable;
  * @see ImportBeanDefinitionRegistrar
  * @see Configuration
  */
+// forcus 用于动态选择要导入的配置类，返回配置类的全限定名数组
+/*
+	实际应用场景:
+		多环境配置：开发、测试、生产环境使用不同的配置
+		多数据源：根据需要选择不同的数据库
+		功能开关：根据配置启用或禁用某些功能
+		自动配置：Spring Boot 的核心机制
+		条件装配：根据类路径中是否存在某些类来决定是否加载配置
+	相关的案例代码可以在:ImportSelectorDemo.java中查看
+ */
 public interface ImportSelector {
 
 	/**
 	 * Select and return the names of which class(es) should be imported based on
 	 * the {@link AnnotationMetadata} of the importing @{@link Configuration} class.
 	 * @return the class names, or an empty array if none
+	 */
+	// 根据导入配置类的注解元数据，选择并返回要导入的类名数组
+	/*
+	    这里需要注意：“导入配置类”的注解元数据,以下面为例子,这里的 importingClassMetadata 就是 AppConfig的注解元数据
+	     @Configuration
+	     @Import(DatabaseConfigSelector.class)
+    	 static class AppConfig {xx}
 	 */
 	String[] selectImports(AnnotationMetadata importingClassMetadata);
 
@@ -77,6 +94,7 @@ public interface ImportSelector {
 	 * of transitively imported configuration classes, or {@code null} if none
 	 * @since 5.2.4
 	 */
+	// 返回一个过滤器，用于排除某些类（可选）
 	@Nullable
 	default Predicate<String> getExclusionFilter() {
 		return null;
