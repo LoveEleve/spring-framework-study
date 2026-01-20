@@ -56,12 +56,17 @@ final class ConfigurationClass {
 	private String beanName;
 
 	private final Set<ConfigurationClass> importedBy = new LinkedHashSet<>(1);
-
+	/*
+		forcus 保存当前配置类中的所有被@Bean方法标注了的注解
+	 */
 	private final Set<BeanMethod> beanMethods = new LinkedHashSet<>();
 
 	private final Map<String, Class<? extends BeanDefinitionReader>> importedResources =
 			new LinkedHashMap<>();
-
+	/*
+		forcus 存储当前配置类中导入的所有 ImportBeanDefinitionRegistrar类
+		forcus 注意: DeferredImportSelector 是添加到 deferredImportSelectorHandler 中 (这个属性是在 ConfigurationClassParser 中的)
+	 */
 	private final Map<ImportBeanDefinitionRegistrar, AnnotationMetadata> importBeanDefinitionRegistrars =
 			new LinkedHashMap<>();
 

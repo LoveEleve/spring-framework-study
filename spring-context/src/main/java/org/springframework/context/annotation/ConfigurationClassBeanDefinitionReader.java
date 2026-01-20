@@ -126,7 +126,7 @@ class ConfigurationClassBeanDefinitionReader {
 	public void loadBeanDefinitions(Set<ConfigurationClass> configurationModel) {
 		TrackedConditionEvaluator trackedConditionEvaluator = new TrackedConditionEvaluator();
 		for (ConfigurationClass configClass : configurationModel) {
-			loadBeanDefinitionsForConfigurationClass(configClass, trackedConditionEvaluator);
+			loadBeanDefinitionsForConfigurationClass(configClass, trackedConditionEvaluator); // forcus
 		}
 	}
 
@@ -135,9 +135,10 @@ class ConfigurationClassBeanDefinitionReader {
 	 * for the class itself and all of its {@link Bean} methods.
 	 */
 	private void loadBeanDefinitionsForConfigurationClass(
-			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) {
-
+			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) { // forcus 暂时对 trackedConditionEvaluator 机制不关心
+		// forcus 判断当前配置类是否需要被跳过 - 可以只关注 conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)方法
 		if (trackedConditionEvaluator.shouldSkip(configClass)) {
+			// 被跳过的处理
 			String beanName = configClass.getBeanName();
 			if (StringUtils.hasLength(beanName) && this.registry.containsBeanDefinition(beanName)) {
 				this.registry.removeBeanDefinition(beanName);
@@ -145,15 +146,17 @@ class ConfigurationClassBeanDefinitionReader {
 			this.importRegistry.removeImportingClass(configClass.getMetadata().getClassName());
 			return;
 		}
-
+		// forcus 处理配置类本身(如果当前配置类是被导入的)
 		if (configClass.isImported()) {
-			registerBeanDefinitionForImportedConfigurationClass(configClass);
+			registerBeanDefinitionForImportedConfigurationClass(configClass); // forcus
 		}
+		// forcus 处理当前配置类中的@Bean方法
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
 			loadBeanDefinitionsForBeanMethod(beanMethod);
 		}
-
+		// 处理 @ImportResource, 很少看到XML配置的了,这里暂时不关注
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
+		// forcus 处理ImportBeanDefinitionRegistrar
 		loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 	}
 

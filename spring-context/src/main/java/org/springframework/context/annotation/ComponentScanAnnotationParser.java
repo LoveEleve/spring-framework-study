@@ -125,6 +125,7 @@ class ComponentScanAnnotationParser {
 				return declaringClass.equals(className);
 			}
 		});
+		// forcus doScan()
 		return scanner.doScan(StringUtils.toStringArray(basePackages));
 	}
 

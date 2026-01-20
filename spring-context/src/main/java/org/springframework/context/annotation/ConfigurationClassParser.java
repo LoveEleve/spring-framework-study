@@ -206,8 +206,22 @@ class ConfigurationClassParser {
 			}
 		}
 		// forcus 处理延迟的ImportSelector，这是解析的最后一步
+		// forcus deferredImportSelectorHandler 中存储着上面解析出来的所有 DeferredImportSelector类
+		// forcus 这个方法也是springboot自动配置的核心方法
 		/*
 			1. 执行的时机,在所有的配置类都解析完毕后
+				- 所有常规的配置类都已经解析完毕
+				- 所有的 @ComponentScan / @Import / @Bean 注解都已经处理完毕
+				{
+				在这里指的是@ComponentScan("xxx"),xxx下面的所有相关注解都被处理完了
+					@ComponentScan: 所有普通的注解(比如@Component家族)都已经成为了BeanDefinition了
+					@Import: 这里会分为3种类型来进行处理
+						 - ImportSelector(纯种的)：立即处理,将导入的类当作配置类来进行解析
+						 - DeferredImportSelector：被存储在 deferredImportSelectorHandler中的属性
+						 - ImportBeanDefinitionRegistrar：被存储在 configClass.importBeanDefinitionRegistrars
+					@Bean: 被存储在 configClass.beanMethods 中
+				}
+				- 此时才处理可能依赖一些配置自动配置
 			2. 处理实现了DeferredImportSelector接口的ImportSelector
 			3. 典型应用： Spring Boot的自动配置就是通过DeferredImportSelector实现的
 			4. 为什么延迟： 确保所有常规配置类都处理完毕后，再处理可能依赖这些配置的自动配置
@@ -301,6 +315,7 @@ class ConfigurationClassParser {
 		 */
 		SourceClass sourceClass = asSourceClass(configClass, filter); // 创建SourceClass
 		do {
+			// forcus 该方法的最后会返回当前类的 sourceClass,递归处理父类
 			sourceClass = doProcessConfigurationClass(configClass, sourceClass, filter);
 		}
 		while (sourceClass != null);
@@ -310,6 +325,9 @@ class ConfigurationClassParser {
 			 Key和Value都是同一个对象： 这是因为ConfigurationClass重写了equals()和hashCode()方法
 			 作用： 标记该配置类已经处理完成，避免重复处理
 		 */
+		// forcus 这里需要额外注意的一点是,对于被导入的配置类,在解析阶段是没有被注册为BeanDefinition的，而是存放到了这个 configurationClasses 中，在后续的注册阶段才会注册为BeanDefinition
+		// forcus 配置类被处理 ≠  注册为BeanDefinition
+		// forcus 被@ComponentScan 扫描到的 组件类(@Component/.../) 会被立即注册为BeanDefinition, 对于是被 @Configuration修饰的组件类 还会进行递归解析
 		this.configurationClasses.put(configClass, configClass);
 	}
 
@@ -517,17 +535,41 @@ class ConfigurationClassParser {
 		// Process individual @Bean methods
 		// forcus 收集当前配置类中所有标注了@Bean注解的方法，并将它们封装成BeanMethod对象添加到配置类中
 		/*
-
+			retrieveBeanMethodMetadata(sourceClass): 获取当前 sourceClass 中所有标注了 @Bean 注解的方法 (返回的是一个set集合)
+				- 内部解决了Java反射API的一个关键问题
+				{
+					Class.getDeclaredMethods()返回的方法顺序是不确定的
+					相同的代码在不同JVM运行时，Bean的注册顺序可能不同
+					可能导致依赖注入的不一致性，特别是当存在多个相同类型的Bean时
+				}
 		 */
 		Set<MethodMetadata> beanMethods = retrieveBeanMethodMetadata(sourceClass);
+		// 循环处理每个方法,将方法的元数据包装为BeanMethod对象添加到配置类中 - 添加到 configClass中
+		// forcus 在后续Bean定义注册阶段使用
+		/*
+			这里再简单扩展一下:对BeanMethod的校验逻辑
+			 1. 为什么需要对@Configuration配置类进行CGLIB校验呢?
+			  - 这是为了确保@Bean的单例语义,在其他方法中可能直接通过调用方法来获取对象(这会new一个新的对象)，而不是选择去容器中获取对象
+			  - 而这个问题的解决办法就是通过代理(在Spring中是通过CGLIB代理来实现的)
+			 2. CGLIB的工作原理(简单介绍)
+			  - 为要被代理的类「在这里是@Configuration配置类」生成一个子类
+			  - 方法重写：子类重写所有的@Bean方法
+			  - 拦截调用：而重写的方法不会执行原逻辑，而是先检查容器中是否已经有对应的Bean对象了，从而保证了单例语义
+			 3. 限制(由于@Bean方法需要被重写)
+			  - @Bean方法不能是final的 ： final方法不能被重写
+			  - @Bean方法不能是private的 ： private方法不能被重写
+			  - @Bean方法不能是static的 ： static方法是属于类的，不是属于对象的，无法被重写(编译期确定)
+		 */
 		for (MethodMetadata methodMetadata : beanMethods) {
 			configClass.addBeanMethod(new BeanMethod(methodMetadata, configClass));
 		}
 
 		// Process default methods on interfaces
+		// forcus 处理配置类实现的接口的@Bean默认方法(接口的默认方法享受与类方法相同的CGLIB代理保护)
 		processInterfaces(configClass, sourceClass);
 
 		// Process superclass, if any
+		// forcus 处理配置类的父类中的@Bean方法
 		if (sourceClass.getMetadata().hasSuperClass()) {
 			String superclass = sourceClass.getMetadata().getSuperClassName();
 			if (superclass != null && !superclass.startsWith("java") &&
@@ -1012,8 +1054,13 @@ class ConfigurationClassParser {
 			try {
 				if (deferredImports != null) {
 					DeferredImportSelectorGroupingHandler handler = new DeferredImportSelectorGroupingHandler();
+					// 按优先级排序所有延迟导入选择器(支持@Order/Order接口)
+					// forcus springboot中的AutoConfigurationImportSelector通常拥有最低优先级，确保在其他自动配置之后执行
 					deferredImports.sort(DEFERRED_IMPORT_COMPARATOR);
+					// forcus 分组注册,按Group类型分组 -- register()方法
+					// 相当于处理每个deferredImports,调用 handler::register(deferredImports)
 					deferredImports.forEach(handler::register);
+					// forcus 这个是真正的最后处理阶段了,负责将所有分组收集的导入项转换为实际的配置类处理
 					handler.processGroupImports();
 				}
 			}
@@ -1025,13 +1072,129 @@ class ConfigurationClassParser {
 
 
 	private class DeferredImportSelectorGroupingHandler {
-
+		/*
+			forcus
+			===
+				  Map<Object, DeferredImportSelectorGrouping> groupings：分组管理器
+				  作用:将所有DeferredImportSelector按照其Group类型进行分组，相同Group的选择器会被放在同一个分组中统一处理
+				   	key: 分组标识符(分为两种类型)
+						 1.Class<? extends Group>：自定义Group类（如AutoConfigurationGroup.class）
+						 2.DeferredImportSelectorHolder：没有Group的选择器holder对象
+				   	value: DeferredImportSelectorGrouping对象，包含该分组的所有选择器
+			 ===
+		 */
 		private final Map<Object, DeferredImportSelectorGrouping> groupings = new LinkedHashMap<>();
-
+		/*
+			forcus
+			===
+				  Map<AnnotationMetadata, ConfigurationClass> configurationClasses ：配置类映射表
+				  {
+				  	Key：AnnotationMetadata（配置类的注解元数据）
+				  	value:Value：ConfigurationClass（配置类对象）
+				  }
+			===
+		 */
 		private final Map<AnnotationMetadata, ConfigurationClass> configurationClasses = new HashMap<>();
 
 		public void register(DeferredImportSelectorHolder deferredImport) {
+			// forcus 调用具体getImportGroup() 方法来获取相应的分组
+			/*
+				这里会出现两种情况:
+				 1. 没有重写 DeferredImportSelector.getImportGroup()方法，那么使用默认分组 (DefaultDeferredImportSelectorGroup)
+				 2. 重写了,并且使用了自定义分组(比如返回的是 xxxGroup.class --> 这是 DeferredImportSelector.Group 类型的，内部有一个核心方法(process(xxx)))
+				 也即可能返回 null / xxx.class
+			 */
 			Class<? extends Group> group = deferredImport.getImportSelector().getImportGroup();
+			/*
+			    反感lambda表达式
+			     1. Map.computeIfAbsent(K key, Function<K, V> mappingFunction)
+			     { ==>
+						V computeIfAbsent(K key, Function<K, V> mappingFunction) {
+							V value = map.get(key);
+							if (value == null) {
+								value = mappingFunction.apply(key);  // 计算新值
+								map.put(key, value);                 // 存入map
+							}
+							return value;
+						}
+			     }
+
+			    K key: group != null ? group : deferredImport
+			     - 如果group不为null,则使用group作为key -- MyCustomGroup.class
+				 - 如果group为null,则使用deferredImport作为key (DeferredImportSelectorHolder类型的)
+
+				Function<K, V> mappingFunction
+				forcus 这里的逻辑是什么呢？
+				 1. 如果某个 DeferredImportSelector 有自己的分组，那么在这里会创建一个新的 DeferredImportSelectorGrouping 对象
+				  	只有第一个会创建，后续的都是直接返回之前创建的DeferredImportSelectorGrouping对象(前提是属于相同的分组)
+				 2. 不同的 DeferredImportSelector 如果有不同的分组，那么对应的 DeferredImportSelectorGrouping对象是不同的
+				 3. 没有重写对应的方法的，那么 每个 DeferredImportSelector 都会创建一个新的 DeferredImportSelectorGrouping对象
+
+				 ===>
+				 这里还有3个属性需要关注一下：
+				  ===
+				  DeferredImportSelectorGrouping grouping： 单个分组对象
+					{
+						内部的属性:
+						private final DeferredImportSelector.Group group;    // Group处理器实例
+						private final List<DeferredImportSelectorHolder> deferredImports;   // 该分组的所有选择器
+					}
+				  ===
+
+				  ===
+				  Map<Object, DeferredImportSelectorGrouping> groupings：分组管理器
+				  作用:将所有DeferredImportSelector按照其Group类型进行分组，相同Group的选择器会被放在同一个分组中统一处理
+				   	key: 分组标识符(分为两种类型)
+						 1.Class<? extends Group>：自定义Group类（如AutoConfigurationGroup.class）
+						 2.DeferredImportSelectorHolder：没有Group的选择器holder对象
+				   	value: DeferredImportSelectorGrouping对象，包含该分组的所有选择器
+				  ===
+
+				  ===
+				  Map<AnnotationMetadata, ConfigurationClass> configurationClasses ：配置类映射表
+				  {
+				  	Key：AnnotationMetadata（配置类的注解元数据）
+				  	value:Value：ConfigurationClass（配置类对象）
+				  }
+				  ===
+
+				  在真正处理时,还会涉及到一个对象,那就是 DeferredImportSelector.Group.Entry
+				  {
+						class Entry {
+							private final AnnotationMetadata metadata;      // 导入方的配置类元数据(这个 DeferredImportSelector 是被哪个配置类导入的)
+							private final String importClassName;           // 要导入的类名(是导入的配置类的类名，不是DeferredImportSelector的类名)
+							// 一个 DeferredImportSelector 可能生成多个entry，因为可以一次性导入多个配置类
+						}
+				  }
+			 */
+			/*
+				forcus groupings 例子
+				groupings = {
+					// 自定义分组：Spring Boot自动配置
+					AutoConfigurationGroup.class -> DeferredImportSelectorGrouping {
+						group: AutoConfigurationGroup实例,
+						deferredImports: [AutoConfigurationImportSelector的holder, 其他自动配置选择器的holder]
+					},
+
+					// 自定义分组：用户自定义
+					MyCustomGroup.class -> DeferredImportSelectorGrouping {
+						group: MyCustomGroup实例,
+						deferredImports: [MySelector1的holder, MySelector2的holder]
+					},
+
+					// 默认分组：独立选择器1
+					DeferredImportSelectorHolder@123 -> DeferredImportSelectorGrouping {
+						group: DefaultDeferredImportSelectorGroup实例,
+						deferredImports: [该选择器的holder]
+					},
+
+					// 默认分组：独立选择器2
+					DeferredImportSelectorHolder@456 -> DeferredImportSelectorGrouping {
+						group: DefaultDeferredImportSelectorGroup实例,
+						deferredImports: [该选择器的holder]
+					}
+				}
+			 */
 			DeferredImportSelectorGrouping grouping = this.groupings.computeIfAbsent(
 					(group != null ? group : deferredImport),
 					key -> new DeferredImportSelectorGrouping(createGroup(group)));
@@ -1039,10 +1202,57 @@ class ConfigurationClassParser {
 			this.configurationClasses.put(deferredImport.getConfigurationClass().getMetadata(),
 					deferredImport.getConfigurationClass());
 		}
-
+		// forcus 真正最后处理 DeferredImportSelector 的方法
 		public void processGroupImports() {
+			// 还记得这个groupings吗?
+		/*
+			forcus
+			===
+				  Map<Object, DeferredImportSelectorGrouping> groupings：分组管理器
+				  作用:将所有DeferredImportSelector按照其Group类型进行分组，相同Group的选择器会被放在同一个分组中统一处理
+				   	key: 分组标识符(分为两种类型)
+						 1.Class<? extends Group>：自定义Group类（如AutoConfigurationGroup.class）
+						 2.DeferredImportSelectorHolder：没有Group的选择器holder对象
+				   	value: DeferredImportSelectorGrouping对象，包含该分组的所有选择器
+			 ===
+		 */
+			// 依次处理所有的 DeferredImportSelectorGrouping 分组对象
+			// 每个分组对象可能包含多个 DeferredImportSelector对象
 			for (DeferredImportSelectorGrouping grouping : this.groupings.values()) {
+				// 获取候选过滤器(获取基础过滤器和Selector过滤器)
+				// 基础过滤器: DEFAULT_EXCLUSION_FILTER-> 排除java基础类和spring注解类
+				// Selector过滤器: 每个DeferredImportSelector对象可以提供自己的排除规则
 				Predicate<String> exclusionFilter = grouping.getCandidateFilter();
+				/*
+					forcus
+					  1. grouping.getImports()：这里就是前面说的,entry的创建过程
+						 以下面为例子:
+						 那么在这里 grouping.getImports() 返回的就是:
+						 [
+								Entry{metadata=Application_metadata, importClassName=DatabaseAutoConfiguration.class},
+								Entry{metadata=Application_metadata, importClassName=CacheAutoConfiguration.class}
+						 ]
+						@Configuration
+						@Import(MyAutoConfigurationImportSelector.class)
+						public class Application {
+						}
+
+						public class MyAutoConfigurationImportSelector implements DeferredImportSelector {
+							@Override
+							public String[] selectImports(AnnotationMetadata metadata) {
+								return new String[]{
+									"com.example.DatabaseAutoConfiguration",
+									"com.example.CacheAutoConfiguration"
+								};
+							}
+						}  
+					forcus 
+					然后就是针对每一个entry进行处理
+						1. ConfigurationClass configurationClass = this.configurationClasses.get(entry.getMetadata());
+						   -- 获取entry中的配置类(对应上面就是CacheAutoConfiguration.class)
+						2.递归调用processImports()
+				*/
+				
 				grouping.getImports().forEach(entry -> {
 					ConfigurationClass configurationClass = this.configurationClasses.get(entry.getMetadata());
 					try {

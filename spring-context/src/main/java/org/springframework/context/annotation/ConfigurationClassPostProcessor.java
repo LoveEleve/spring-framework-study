@@ -285,8 +285,8 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		List<BeanDefinitionHolder> configCandidates = new ArrayList<>();
 		// 从容器中获取所有的已经注册了的 BeanName
 		/*
-			在这里默认是6个(5个提前注册的后置处理器)
-			1个就是我的DebugApplication
+			在这里默认是x+5个(5个提前注册的后置处理器)
+			x个就是我的启动类(通常为1个)
 		 */
 		String[] candidateNames = registry.getBeanDefinitionNames();
 		// 依次处理每个beanName
@@ -300,7 +300,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					logger.debug("Bean definition has already been processed as a configuration class: " + beanDef);
 				}
 			}
-			// forcus 调用 checkConfigurationClassCandidate(beanDef,xxx) 检查是否为配置类
+			// forcus 调用 checkConfigurationClassCandidate(beanDef,xxx) 检查是否为配置类 (对于这里的6个beanName来说,Spring提前注册的5个后置处理器不是配置类)
 			// 如果是配置类,那么添加到 候选者列表configCandidates中 ( forcus 在这里不是添加beanName,而是创建一个BeanDefinitionHolder)
 			/*
 				forcus 在这里面还会区分配置类的类型 - Full / Lite
@@ -344,7 +344,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		}
 
 		// Parse each @Configuration class
-		// 创建配置类解析器
+		// forcus 创建配置类解析器
 		ConfigurationClassParser parser = new ConfigurationClassParser(
 				this.metadataReaderFactory, this.problemReporter, this.environment,
 				this.resourceLoader, this.componentScanBeanNameGenerator, registry);
@@ -377,6 +377,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 				 - 处理@Bean方法(记录但是不会立即注册)
 				 - 递归处理所有相关的配置类
 			 */
+			//forcus 这内部也有一个do-while()循环
 			parser.parse(candidates);
 			parser.validate();
 			// forcus 获取所有解析后的配置类
@@ -385,7 +386,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			configClasses.removeAll(alreadyParsed);
 
 			// Read the model and create bean definitions based on its content
-			// 创建 BeanDefinition 读取器
+			// forcus 创建 BeanDefinition 读取器
 			if (this.reader == null) {
 				this.reader = new ConfigurationClassBeanDefinitionReader(
 						registry, this.sourceExtractor, this.resourceLoader, this.environment,
@@ -395,7 +396,16 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			// forcus 加载 BeanDefinition
 			/*
 				核心方法，将解析后的配置类转换为 BeanDefinition 并注册到容器中
-				 -
+				遍历解析解锁收集的所有 ConfigurationClass (注意,配置类本身早就是BeanDefinition了)
+				以及被@ComponentScan扫描到的组件类,也都已经被注册为BeanDefinition了
+			 */
+			// forcus 注册bean定义
+			/*
+				Set<ConfigurationClass> configClasses
+				 这里的 ConfigurationClass 中 有些很重要的属性：
+				  - beanMethods: [@Bean方法集合]
+				  - importBeanDefinitionRegistrars: [注册器集合]
+				  - isImported(): 是否通过@Import导入
 			 */
 			this.reader.loadBeanDefinitions(configClasses);
 			alreadyParsed.addAll(configClasses);
@@ -424,6 +434,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 		while (!candidates.isEmpty());
 
 		// Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
+		// forcus sbr通常就是 ApplicationContext
 		if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
 			sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
 		}
