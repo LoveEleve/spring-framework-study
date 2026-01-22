@@ -63,9 +63,9 @@ import org.springframework.util.ObjectUtils;
  */
 public abstract class AbstractApplicationEventMulticaster
 		implements ApplicationEventMulticaster, BeanClassLoaderAware, BeanFactoryAware {
-
+	// forcus 存储所有注册的监听器
 	private final DefaultListenerRetriever defaultRetriever = new DefaultListenerRetriever();
-
+	// forcus 缓存特定事件类型的匹配监听器，提高性能
 	final Map<ListenerCacheKey, CachedListenerRetriever> retrieverCache = new ConcurrentHashMap<>(64);
 
 	@Nullable
@@ -117,6 +117,7 @@ public abstract class AbstractApplicationEventMulticaster
 	@Override
 	public void addApplicationListenerBean(String listenerBeanName) {
 		synchronized (this.defaultRetriever) {
+			// forcus 存储到 defaultRetriever.applicationListenerBeans (并且是只存储beanName)
 			this.defaultRetriever.applicationListenerBeans.add(listenerBeanName);
 			this.retrieverCache.clear();
 		}
@@ -184,6 +185,7 @@ public abstract class AbstractApplicationEventMulticaster
 	 * @return a Collection of ApplicationListeners
 	 * @see org.springframework.context.ApplicationListener
 	 */
+	// forcus 职责概览: 根据 事件类型 和 来源类型，筛选出能处理该事件的监听器集合
 	protected Collection<ApplicationListener<?>> getApplicationListeners(
 			ApplicationEvent event, ResolvableType eventType) {
 
@@ -486,7 +488,7 @@ public abstract class AbstractApplicationEventMulticaster
 	private class DefaultListenerRetriever {
 
 		public final Set<ApplicationListener<?>> applicationListeners = new LinkedHashSet<>();
-
+		// forcus 存储了所有监听器的beanName，注意存储的是名字，而不是实例哦
 		public final Set<String> applicationListenerBeans = new LinkedHashSet<>();
 
 		public Collection<ApplicationListener<?>> getApplicationListeners() {

@@ -74,11 +74,11 @@ class ConfigurationClassEnhancer {
 
 	// The callbacks to use. Note that these callbacks must be stateless.
 	private static final Callback[] CALLBACKS = new Callback[] {
-			new BeanMethodInterceptor(),
-			new BeanFactoryAwareMethodInterceptor(),
-			NoOp.INSTANCE
+			new BeanMethodInterceptor(), // forcus 拦截@Bean方法
+			new BeanFactoryAwareMethodInterceptor(), // 注入BeanFactory
+			NoOp.INSTANCE // 不拦截的方法
 	};
-
+	// forcus CALLBACKS
 	private static final ConditionalCallbackFilter CALLBACK_FILTER = new ConditionalCallbackFilter(CALLBACKS);
 
 	private static final String BEAN_FACTORY_FIELD = "$$beanFactory";
@@ -106,6 +106,7 @@ class ConfigurationClassEnhancer {
 			}
 			return configClass;
 		}
+		// forcus 执行CGLIB增强
 		Class<?> enhancedClass = createClass(newEnhancer(configClass, classLoader));
 		if (logger.isTraceEnabled()) {
 			logger.trace(String.format("Successfully enhanced %s; enhanced class name is: %s",
@@ -119,12 +120,12 @@ class ConfigurationClassEnhancer {
 	 */
 	private Enhancer newEnhancer(Class<?> configSuperClass, @Nullable ClassLoader classLoader) {
 		Enhancer enhancer = new Enhancer();
-		enhancer.setSuperclass(configSuperClass);
-		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class});
+		enhancer.setSuperclass(configSuperClass); // 设置父类(这个就是被代理的类)
+		enhancer.setInterfaces(new Class<?>[] {EnhancedConfiguration.class}); // 实现标记接口
 		enhancer.setUseFactory(false);
 		enhancer.setNamingPolicy(SpringNamingPolicy.INSTANCE);
 		enhancer.setStrategy(new BeanFactoryAwareGeneratorStrategy(classLoader));
-		enhancer.setCallbackFilter(CALLBACK_FILTER);
+		enhancer.setCallbackFilter(CALLBACK_FILTER);  // forcus 设置方法拦截器,关注一下
 		enhancer.setCallbackTypes(CALLBACK_FILTER.getCallbackTypes());
 		return enhancer;
 	}

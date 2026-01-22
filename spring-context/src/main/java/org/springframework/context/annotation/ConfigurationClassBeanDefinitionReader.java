@@ -125,6 +125,9 @@ class ConfigurationClassBeanDefinitionReader {
 	 */
 	public void loadBeanDefinitions(Set<ConfigurationClass> configurationModel) {
 		TrackedConditionEvaluator trackedConditionEvaluator = new TrackedConditionEvaluator();
+		/*
+			依次处理传入的每个配置类(在parse阶段解析得到的) - 在这里有6个
+		 */
 		for (ConfigurationClass configClass : configurationModel) {
 			loadBeanDefinitionsForConfigurationClass(configClass, trackedConditionEvaluator); // forcus
 		}
@@ -137,6 +140,7 @@ class ConfigurationClassBeanDefinitionReader {
 	private void loadBeanDefinitionsForConfigurationClass(
 			ConfigurationClass configClass, TrackedConditionEvaluator trackedConditionEvaluator) { // forcus 暂时对 trackedConditionEvaluator 机制不关心
 		// forcus 判断当前配置类是否需要被跳过 - 可以只关注 conditionEvaluator.shouldSkip(configClass.getMetadata(), ConfigurationPhase.REGISTER_BEAN)方法
+		// forcus 如果被跳过了,那么被这个配置类导入的类也需要被移除掉
 		if (trackedConditionEvaluator.shouldSkip(configClass)) {
 			// 被跳过的处理
 			String beanName = configClass.getBeanName();
@@ -147,16 +151,32 @@ class ConfigurationClassBeanDefinitionReader {
 			return;
 		}
 		// forcus 处理配置类本身(如果当前配置类是被导入的)
+		// 这里验证了之前所说的,在parser.parse()阶段,对于导入的配置类是没有注册为beanDefinition的
+		// 在这里注册为beanDefinition
 		if (configClass.isImported()) {
-			registerBeanDefinitionForImportedConfigurationClass(configClass); // forcus
+			registerBeanDefinitionForImportedConfigurationClass(configClass); // forcus 容器中的两个集合(beanDefinitionMap,beanDefinitionNames)
 		}
 		// forcus 处理当前配置类中的@Bean方法
+		/*
+			这里有两个关键点,设置 setFactoryBeanName() / setUniqueFactoryMethodName()
+			 - 实例方法
+			 	- beanDef.setFactoryBeanName("coreMainConfig"); // 配置类Bean名称
+			 	- beanDef.setUniqueFactoryMethodName("mainService"); // @Bean方法名
+			 - 静态方法
+			 	- beanDef.setBeanClass(CoreMainConfig.class);        // 配置类Class
+				- beanDef.setUniqueFactoryMethodName("staticBean");  // 静态方法名
+			后续实例化的时候,spring会执行如下操作:
+			 	- 获取配置类实例（对于实例方法）
+			 	- 调用对应的 @Bean 方法
+			 	- 返回方法返回值作为 Bean 实例
+		 */
 		for (BeanMethod beanMethod : configClass.getBeanMethods()) {
-			loadBeanDefinitionsForBeanMethod(beanMethod);
+			loadBeanDefinitionsForBeanMethod(beanMethod); // forcus 将所有的BeanMethod注册为beanDefinition
 		}
 		// 处理 @ImportResource, 很少看到XML配置的了,这里暂时不关注
 		loadBeanDefinitionsFromImportedResources(configClass.getImportedResources());
 		// forcus 处理ImportBeanDefinitionRegistrar
+		// 该方法能够自己向容器中注册beanDefinition
 		loadBeanDefinitionsFromRegistrars(configClass.getImportBeanDefinitionRegistrars());
 	}
 

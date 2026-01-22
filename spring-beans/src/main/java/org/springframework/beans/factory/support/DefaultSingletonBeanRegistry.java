@@ -187,6 +187,12 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 
 	@Override
 	@Nullable
+	/*
+		forcus 这个方法是spring三级缓存的核心
+			- singletonObjects 一级缓存，存放完整的单例对象
+			- earlySingletonObjects 二级缓存，早期暴露的对象，解决循环依赖
+			- singletonFactories 三级缓存 对象工厂(objectFactory),延迟创建代理对象
+	 */
 	public Object getSingleton(String beanName) {
 		return getSingleton(beanName, true);
 	}
@@ -202,7 +208,17 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
 		// Quick check for existing instance without full singleton lock
-		Object singletonObject = this.singletonObjects.get(beanName);
+		Object singletonObject = this.singletonObjects.get(beanName); // 先去一级缓存中查找，如果找到了直接返回
+		/*
+			forcus 一级缓存中没有
+				- isSingletonCurrentlyInCreation(beanName):这个方法的作用是用来判断 当前bean是否正在创建 (只有正在创建的bean才可能出现循环依赖)
+				- singletonsCurrentlyInCreation：这个集合是用来记录正在创建的bean名称的
+
+			如果不在单例池中 但是却在创建中,那么继续去earlySingletonObjects中查找(早期引用暴露)
+			但是第一次实例化的时候是没有的,后续会单独讲解一下bean的循环依赖问题
+			这里有一个非常经典的问题：就是解决循环依赖为什么需要三级缓存呢？二级缓存也可以实现这个功能啊？
+			 - forcus 后续解答
+		 */
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
 			singletonObject = this.earlySingletonObjects.get(beanName);
 			if (singletonObject == null && allowEarlyReference) {
@@ -212,11 +228,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					if (singletonObject == null) {
 						singletonObject = this.earlySingletonObjects.get(beanName);
 						if (singletonObject == null) {
-							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
+							ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName); // 获取beanName对应的工厂
 							if (singletonFactory != null) {
-								singletonObject = singletonFactory.getObject();
-								this.earlySingletonObjects.put(beanName, singletonObject);
-								this.singletonFactories.remove(beanName);
+								singletonObject = singletonFactory.getObject();// 调用工厂方法创建对象(可能是代理对象)
+								this.earlySingletonObjects.put(beanName, singletonObject); // 存放到二级缓存中
+								this.singletonFactories.remove(beanName);// 移除
 							}
 						}
 					}

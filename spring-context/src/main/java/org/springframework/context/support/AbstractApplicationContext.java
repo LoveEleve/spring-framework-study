@@ -231,13 +231,20 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	private MessageSource messageSource;
 
 	/** Helper class used in event publishing. */
+	/*
+		知识科普：事件广播器的作用是什么呢？
+		 - 核心职责：
+		  1. 管理监听器：添加、移除事件监听器
+		  2. 事件广播：将事件分发给匹配的监听器
+	 */
 	@Nullable
-	private ApplicationEventMulticaster applicationEventMulticaster;
+	private ApplicationEventMulticaster applicationEventMulticaster; // forcus  用户自定义 / spring默认(SimpleApplicationEventMulticaster)
 
 	/** Application startup metrics. **/
 	private ApplicationStartup applicationStartup = ApplicationStartup.DEFAULT;
 
 	/** Statically specified listeners. */
+	// forcus 这个集合是为编程式添加的监听器准备的，而不是 Spring 框架内部使用的,如果用户没有手动添加,那么这个集合就是为null的
 	private final Set<ApplicationListener<?>> applicationListeners = new LinkedHashSet<>();
 
 	/** Local listeners registered before refresh. */
@@ -598,29 +605,113 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				/*
 				   前提回顾: 此时所有的业务类还没有被处理(没有beanDefinition,bean实例)
 
-				   forcus 核心方法，处理两类核心的后置处理器 -- 是真的核心方法
+				   forcus 核心方法，处理两类核心的后置处理器 -- 是真的核心方法 BDRPP & BFPP
 				   == 并且是先执行 BDRPP 的扩展方法，再执行 BFPP的扩展方法
 				    - BDRPP : BeanDefinitionRegistryPostProcessor : 可以注册新的BeanDefinition
 				    - BFPP : BeanFactoryPostProcessor: 只能修改已有的BeanDefinition
 				 */
+				/*
+					Spring在启动的时候默认会注册5个后置处理器,但是只有2个会在这里起作用
+					 - ConfigurationClassPostProcessor
+					 	- postProcessBeanDefinitionRegistry()：解析配置类,在这一步会将所有的组件都变成beanDef,存放到容器中,但是注意并没有主动生成Bean实例
+					 	- postProcessBeanFactory()：对Full类型的配置类,进行cglib代理
+					 - EventListenerMethodProcessor
+					 	- postProcessBeanFactory() ：收集所有 EventListenerFactory，排序并且保存
+					 		- 默认只有DefaultEventListenerFactory,在开启事务的情况下还会有 ransactionalEventListenerFactory(不过暂时不需要关心)
+					 	- afterSingletonsInstantiated() ：将 @EventListener 方法转换为ApplicationListener Bean，并且 注册到Spring的事件发布机制中
+					 		- forcus 真正处理@EventListener注解的方法 (因为该BFPP还实现了SmartInitializingSingleton接口) -- 后续再深入了解
+					 - 可能有用户自定义的BDRPP/BFPP
+				 */
+				/*
+					forcus 知识扩展
+
+						@EventListener注解的作用是什么呢？
+							- 该注解是spring-4.2引入的注解，用于标记方法作为应用程序事件的监听器
+						基本用法
+							方法级注解：标注在方法上，将方法转换为事件监听器
+							类型推断：可以通过方法参数自动推断监听的事件类型
+							多事件支持：一个方法可以监听多种事件类型
+							条件监听：支持SpEL表达式进行条件判断
+						高级特性
+							返回值处理：方法返回值可以作为新事件发布
+							异步支持：配合@Async实现异步事件处理
+							排序支持：配合@Order控制监听器执行顺序
+							异常处理：支持异常包装和处理
+				 */
 				invokeBeanFactoryPostProcessors(beanFactory);
 				// Register bean processors that intercept bean creation.
+				/*
+					forcus 核心方法，注册所有BeanPostProcessor - 这里的注册指的getBean()创建BPP类型的实例,并且添加到beanPostProcessors集合中
+					注意,这里并没有执行任何一个BPP实例对象的回调方法哦~
+
+					默认执行到这里的时候,有6个BPP对象
+						- ApplicationContextAwareProcessor
+							- 作用:处理6种Aware接口的回调
+							- 触发时机：postProcessBeforeInitialization
+							- 注册位置：prepareBeanFactory() 中直接添加
+						- ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor
+							- 作用：
+								1. 为CGLIB增强的配置类注入BeanFactory
+								2. 处理ImportAware接口回调
+							- 触发时机: postProcessProperties 和 postProcessBeforeInitialization
+							- 注册位置：ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry() 中添加
+						- PostProcessorRegistrationDelegate$BeanPostProcessorChecker
+							- 作用：检测bean是否在所有BeanPostProcessor注册完成前被创建
+							- 触发时机：postProcessAfterInitialization
+							- 影响：如果检测到，打印警告日志（该bean可能无法被所有BPP处理，如无法被AOP代理）
+							- 注册位置：registerBeanPostProcessors() 中添加
+						- CommonAnnotationBeanPostProcessor
+							- 作用：处理JSR-250标准注解
+							- 处理的注解：@Resource、@PostConstruct、@PreDestroy、@EJB、@WebServiceRef
+							- 注册位置: 通过BeanDefinition在 AnnotationConfigUtils 中注册
+						- AutowiredAnnotationBeanPostProcessor
+							- 作用:处理自动装配注解
+							- 处理的注解：@Autowired、@Value、@Inject（JSR-330）
+							- 注册位置：通过BeanDefinition在 AnnotationConfigUtils 中注册
+							- 功能细节：字段注入 / 构造器注入 / 方法注入 / 值注入(@Value)
+						- ApplicationListenerDetector
+							- 作用：检测并注册实现ApplicationListener接口的bean
+							- 触发时机：
+								postProcessAfterInitialization（注册）
+								postProcessBeforeDestruction（移除）
+							- 注册位置：registerBeanPostProcessors() 最后添加
+				 */
 				registerBeanPostProcessors(beanFactory);
 				beanPostProcess.end();
 
-				// Initialize message source for this context.
+				// Initialize message source for this context. 国际化相关，暂时不关心
 				initMessageSource();
 
 				// Initialize event multicaster for this context.
+				// forcus 初始化 事件广播器，它是Spring事件机制的核心组件
+				// forcus SimpleApplicationEventMulticaster
 				initApplicationEventMulticaster();
 
 				// Initialize other special beans in specific context subclasses.
+				// forcus 模版方法,空实现,在springboot中会使用到(在这里启动内嵌的tomcat服务器)
 				onRefresh();
 
 				// Check for listener beans and register them.
+				/*
+					forcus 将应用程序中的事件监听器注册到事件广播器中，并发布在广播器就绪之前暂存的早期事件。
+					需要注意的是,在上面的 initApplicationEventMulticaster()方法中才刚刚 创建了 事件广播器(默认为 SimpleApplicationEventMulticaster)
+					==
+					spring的事件机制简单介绍：
+					 - spring事件机制由三个核心组件组成
+					  - ApplicationEvent:事件对象 -> 发布对象
+					  - ApplicationEventMulticaster:事件广播器 -> 广播事件(registerListeners()就是在这里完成监听器的注册)
+					  - ApplicationListener:事件监听器
+				 */
 				registerListeners();
 
 				// Instantiate all remaining (non-lazy-init) singletons.
+				/*
+					forcus spring初始化中最重要,同时也是最耗时的一个步骤
+					===
+						- 绝大多数的用户自定义的Bean,都是在这里被实例化的
+						- 依赖注入在这里完成
+						- @PostConstruct & InitializingBean 等初始化回调在这里完成
+				 */
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
@@ -891,8 +982,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @see #APPLICATION_EVENT_MULTICASTER_BEAN_NAME
 	 * @see org.springframework.context.event.SimpleApplicationEventMulticaster
 	 */
+	// forcus 初始化事件广播器，负责将应用事件分发给所有相关的监听器。这是Spring事件驱动架构的核心基础设施。
 	protected void initApplicationEventMulticaster() {
 		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		/*
+			检查容器中是否已经注册了名为 "applicationEventMulticaster" 的bean
+			 - 如果存在,那么通常是用户自定义的,那么实例化该对象(通过getBean())
+		 */
 		if (beanFactory.containsLocalBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME)) {
 			this.applicationEventMulticaster =
 					beanFactory.getBean(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, ApplicationEventMulticaster.class);
@@ -900,9 +996,14 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				logger.trace("Using ApplicationEventMulticaster [" + this.applicationEventMulticaster + "]");
 			}
 		}
+		/*
+			forcus 否则没有,这是默认情况
+			那么创建默认的 事件广播器对象 -  SimpleApplicationEventMulticaster
+		    并且注册到容器中
+		 */
 		else {
-			this.applicationEventMulticaster = new SimpleApplicationEventMulticaster(beanFactory);
-			beanFactory.registerSingleton(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, this.applicationEventMulticaster);
+			this.applicationEventMulticaster = new SimpleApplicationEventMulticaster(beanFactory); // 创建对象
+			beanFactory.registerSingleton(APPLICATION_EVENT_MULTICASTER_BEAN_NAME, this.applicationEventMulticaster); // 注册到容器中
 			if (logger.isTraceEnabled()) {
 				logger.trace("No '" + APPLICATION_EVENT_MULTICASTER_BEAN_NAME + "' bean, using " +
 						"[" + this.applicationEventMulticaster.getClass().getSimpleName() + "]");
@@ -952,20 +1053,53 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * Add beans that implement ApplicationListener as listeners.
 	 * Doesn't affect other listeners, which can be added without being beans.
 	 */
+	/*
+		forcus 这个方法主要做了3件事情
+		==
+			1. 注册编程式监听器实例,将通过 addApplicationListener() 手动添加的监听器注册到广播器
+			2. 注册 Bean 形式的监听器,将容器中实现 ApplicationListener 接口的 Bean 的名字注册到广播器（延迟实例化）
+			3. 注册早期事件
+	 */
 	protected void registerListeners() {
 		// Register statically specified listeners first.
+		// forcus-1 注册编程式监听器实例
+		/*
+			getApplicationListeners() 返回之前通过 addApplicationListener() 添加的监听器集合
+		 	默认为0个,因为这个是编程式添加的(用户手动加的)
+		 	而spring中则有两种方式来注册监听器：
+		 		1.Bean 形式: getBeanNamesForType(ApplicationListener.class)
+		 		2.BPP 自动检测:	ApplicationListenerDetector,单例实例化后自动检测注册
+		 */
 		for (ApplicationListener<?> listener : getApplicationListeners()) {
 			getApplicationEventMulticaster().addApplicationListener(listener);
 		}
 
 		// Do not initialize FactoryBeans here: We need to leave all regular beans
 		// uninitialized to let post-processors apply to them!
+		/*
+			forcus 从容器中获取所有实现了 ApplicationListener 接口的 Bean 的名字
+			forcus 某个类实现了 ApplicationListener ， 并且需要成为一个组件(@Component)
+
+			但是需要注意的是，spring默认也没有注册内置的bean对象,所以这里也是为空的(Springboot中会有吗？)
+			但是还是要看下这里到底做了什么
+		 */
 		String[] listenerBeanNames = getBeanNamesForType(ApplicationListener.class, true, false);
 		for (String listenerBeanName : listenerBeanNames) {
+			/*
+			     forcus
+			      - getApplicationEventMulticaster(): 获取之前创建的事件广播器 - SimpleApplicationEventMulticaster
+			      - SimpleApplicationEventMulticaster.addApplicationListenerBean(listenerBeanName)
+			 */
 			getApplicationEventMulticaster().addApplicationListenerBean(listenerBeanName);
 		}
 
 		// Publish early application events now that we finally have a multicaster...
+		/*
+			forcus 发布早期事件
+				在事件广播器还未创建之前,如果产生了事件,那么会先保存在 earlyApplicationEvents 中
+				spring选择将这些事件暂时存储在 earlyApplicationEvents 集合中
+				然后在这里进行早期事件的发布
+		 */
 		Set<ApplicationEvent> earlyEventsToProcess = this.earlyApplicationEvents;
 		this.earlyApplicationEvents = null;
 		if (!CollectionUtils.isEmpty(earlyEventsToProcess)) {
@@ -981,6 +1115,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
 		// Initialize conversion service for this context.
+		// forcus 1.初始化 类型转换服务
+		/*
+			forcus ConversionService 是 Spring 3.0 引入的统一类型转换 API，用于替代传统的 PropertyEditor
+			===
+			但是spring默认没有注册 ConversionService，所以这段代码默认是不执行的，也即依旧使用的是 PropertyEditor(这个也暂时不关心了)
+			但是在springboot是会自动注册 ApplicationConversionService 的
+		 */
 		if (beanFactory.containsBean(CONVERSION_SERVICE_BEAN_NAME) &&
 				beanFactory.isTypeMatch(CONVERSION_SERVICE_BEAN_NAME, ConversionService.class)) {
 			beanFactory.setConversionService(
@@ -990,11 +1131,14 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		// Register a default embedded value resolver if no BeanFactoryPostProcessor
 		// (such as a PropertySourcesPlaceholderConfigurer bean) registered any before:
 		// at this point, primarily for resolution in annotation attribute values.
+		// forcus 2. 注册默认的嵌入值解析器（处理 @Value 占位符）
+		// 暂时不关注
 		if (!beanFactory.hasEmbeddedValueResolver()) {
 			beanFactory.addEmbeddedValueResolver(strVal -> getEnvironment().resolvePlaceholders(strVal));
 		}
 
 		// Initialize LoadTimeWeaverAware beans early to allow for registering their transformers early.
+		// forcus 3. 提前初始化 LoadTimeWeaverAware Bean（AOP 织入）
 		String[] weaverAwareNames = beanFactory.getBeanNamesForType(LoadTimeWeaverAware.class, false, false);
 		for (String weaverAwareName : weaverAwareNames) {
 			getBean(weaverAwareName);
@@ -1004,9 +1148,21 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		beanFactory.setTempClassLoader(null);
 
 		// Allow for caching all bean definition metadata, not expecting further changes.
+		// forcus 4. 冻结 BeanDefinition 配置
+		/*
+			主要做了两件事情:
+			 1.this.configurationFrozen = true # 设置冻结标识
+			 2.this.frozenBeanDefinitionNames = StringUtils.toStringArray(this.beanDefinitionNames); # 缓存所有的beanDefinition
+			===
+			为什么要进行缓存呢？--> 主要是为了性能优化
+			 	1. 启用类型缓存：getBeanNamesForType()
+			 	2. 元数据缓存资格
+			 	3. preInstantiateSingletons 使用快照
+		 */
 		beanFactory.freezeConfiguration();
 
 		// Instantiate all remaining (non-lazy-init) singletons.
+		// forcus 5. 实例化所有非懒加载的单例 Bean forcus
 		beanFactory.preInstantiateSingletons();
 	}
 

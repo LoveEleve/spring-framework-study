@@ -94,44 +94,60 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @see org.springframework.beans.factory.FactoryBean#getObject()
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
+		// 工厂bean是单例的，并且已经存在于单例池中了
 		if (factory.isSingleton() && containsSingleton(beanName)) {
 			synchronized (getSingletonMutex()) {
+				// forcus 产品bean专用缓存集合，key是beanName，value是产品bean实例
 				Object object = this.factoryBeanObjectCache.get(beanName);
+				// 如果为null，那么进行创建
 				if (object == null) {
+					// forcus 内部是调用 factory.getObject() 创建产品bean
 					object = doGetObjectFromFactoryBean(factory, beanName);
 					// Only post-process and store if not put there already during getObject() call above
 					// (e.g. because of circular reference processing triggered by custom getBean calls)
 					Object alreadyThere = this.factoryBeanObjectCache.get(beanName);
 					if (alreadyThere != null) {
-						object = alreadyThere;
+						object = alreadyThere; // forcus 使用已存在的，丢弃刚创建的，处理循环依赖
 					}
 					else {
 						if (shouldPostProcess) {
+							/*
+								场景：FactoryBean A 的产品依赖 FactoryBean B 的产品
+									 FactoryBean B 的产品又依赖 FactoryBean A 的产品
+
+								A.getObject() 开始
+									└─ 需要B的产品
+										└─ B.getObject()
+											└─ 需要A的产品
+												└─ A正在创建中！
+													└─ 返回未后处理的A产品（打破循环）
+							 */
 							if (isSingletonCurrentlyInCreation(beanName)) {
 								// Temporarily return non-post-processed object, not storing it yet..
+								// 正在创建中，暂时返回未后处理的对象
 								return object;
 							}
-							beforeSingletonCreation(beanName);
+							beforeSingletonCreation(beanName); // 标记开始创建
 							try {
-								object = postProcessObjectFromFactoryBean(object, beanName);
+								object = postProcessObjectFromFactoryBean(object, beanName); // 后置处理
 							}
 							catch (Throwable ex) {
 								throw new BeanCreationException(beanName,
 										"Post-processing of FactoryBean's singleton object failed", ex);
 							}
 							finally {
-								afterSingletonCreation(beanName);
+								afterSingletonCreation(beanName); // 标记创建完成
 							}
 						}
 						if (containsSingleton(beanName)) {
-							this.factoryBeanObjectCache.put(beanName, object);
+							this.factoryBeanObjectCache.put(beanName, object); // forcus 存入缓存
 						}
 					}
 				}
 				return object;
 			}
 		}
-		else {
+		else { // 非单例的逻辑,不需要关心
 			Object object = doGetObjectFromFactoryBean(factory, beanName);
 			if (shouldPostProcess) {
 				try {

@@ -569,7 +569,7 @@ class ConfigurationClassParser {
 		processInterfaces(configClass, sourceClass);
 
 		// Process superclass, if any
-		// forcus 处理配置类的父类中的@Bean方法
+		// forcus 处理配置类的父类,在这里会返回父类的sourceClass
 		if (sourceClass.getMetadata().hasSuperClass()) {
 			String superclass = sourceClass.getMetadata().getSuperClassName();
 			if (superclass != null && !superclass.startsWith("java") &&

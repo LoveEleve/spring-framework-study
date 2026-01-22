@@ -48,13 +48,17 @@ import org.springframework.util.ErrorHandler;
  * @author Brian Clozel
  * @see #setTaskExecutor
  */
+// forcus 事件广播器 继承自 AbstractApplicationEventMulticaster(监听器管理 / 监听器筛选)
 public class SimpleApplicationEventMulticaster extends AbstractApplicationEventMulticaster {
 
+	/*
+		如果没有指定taskExecutor,则在当前(调用)线程中执行监听器
+	 */
 	@Nullable
-	private Executor taskExecutor;
+	private Executor taskExecutor; // forcus 可选的异步执行器(线程池)
 
 	@Nullable
-	private ErrorHandler errorHandler;
+	private ErrorHandler errorHandler; // 错误处理器
 
 	@Nullable
 	private volatile Log lazyLogger;
@@ -128,6 +132,10 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 		return this.errorHandler;
 	}
 
+	// forcus 核心方法
+	/*
+		resolveDefaultEventType(event)：forcus,范型事件监听器匹配的关键
+	 */
 	@Override
 	public void multicastEvent(ApplicationEvent event) {
 		multicastEvent(event, resolveDefaultEventType(event));
@@ -135,9 +143,13 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 
 	@Override
 	public void multicastEvent(final ApplicationEvent event, @Nullable ResolvableType eventType) {
+		// forcus 解析事件类型(如果未主动提供)
 		ResolvableType type = (eventType != null ? eventType : resolveDefaultEventType(event));
+		// 获取执行器(可能没有)
 		Executor executor = getTaskExecutor();
+		// forcus 获取能够处理当前event事件的监听器
 		for (ApplicationListener<?> listener : getApplicationListeners(event, type)) {
+			// forcus 如果有执行器,则异步执行监听器,否则同步执行监听器
 			if (executor != null) {
 				executor.execute(() -> invokeListener(listener, event));
 			}
@@ -147,8 +159,9 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 		}
 	}
 
+	// forcus
 	private ResolvableType resolveDefaultEventType(ApplicationEvent event) {
-		return ResolvableType.forInstance(event);
+		return ResolvableType.forInstance(event); // forcus 核心方法
 	}
 
 	/**
@@ -161,7 +174,7 @@ public class SimpleApplicationEventMulticaster extends AbstractApplicationEventM
 		ErrorHandler errorHandler = getErrorHandler();
 		if (errorHandler != null) {
 			try {
-				doInvokeListener(listener, event);
+				doInvokeListener(listener, event); // forcus 真正的调用监听器
 			}
 			catch (Throwable err) {
 				errorHandler.handleError(err);

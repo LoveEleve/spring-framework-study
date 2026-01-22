@@ -1126,6 +1126,9 @@ public class ResolvableType implements Serializable {
 	 * @since 4.2
 	 * @see ResolvableTypeProvider
 	 */
+	/*
+		解决Java范型擦除问题
+	 */
 	public static ResolvableType forInstance(@Nullable Object instance) {
 		if (instance instanceof ResolvableTypeProvider) {
 			ResolvableType type = ((ResolvableTypeProvider) instance).getResolvableType();

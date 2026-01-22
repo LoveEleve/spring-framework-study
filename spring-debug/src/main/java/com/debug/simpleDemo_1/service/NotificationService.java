@@ -1,15 +1,14 @@
 package com.debug.simpleDemo_1.service;
 
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 /**
- * 通知服务 - 通过@ComponentScan扫描的组件
- * 演示@ComponentScan的立即注册机制
+ * 通知服务
  */
-@Component
+@Service
 public class NotificationService {
     
-    public String sendNotification(String message) {
-        return "Notification sent: " + message;
+    public void sendNotification(String message) {
+        System.out.println("发送通知: " + message);
     }
 }

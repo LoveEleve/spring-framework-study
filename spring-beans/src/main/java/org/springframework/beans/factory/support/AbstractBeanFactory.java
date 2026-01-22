@@ -259,33 +259,52 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 	protected <T> T doGetBean(
 			String name, @Nullable Class<T> requiredType, @Nullable Object[] args, boolean typeCheckOnly)
 			throws BeansException {
-
+		// 规整化beanName, "&myFactoryBean" -> "myFactoryBean"
+		// 注意,这里的 name 还是 "&myFactoryBean"
 		String beanName = transformedBeanName(name);
 		Object beanInstance;
 
 		// Eagerly check singleton cache for manually registered singletons.
+		/*
+			forcus 获取单例bean
+			但是需要注意的是这里返回的bean对象可能有两种情况：
+				1.完整对象：从一级缓存中获取的完全初始化的bean对象
+				2.从二级缓存获取的循环依赖中的早期引用(是先从三级缓存获取对应的工厂方法，然后调用 singletonFactory.getObject() 创建对象)，放入到二级缓存中
+			但是第一次实例化的时候,这里是返回为null的(也即需要创建)
+			forcus 这里也需要注意一下，如果
+		 */
 		Object sharedInstance = getSingleton(beanName);
 		if (sharedInstance != null && args == null) {
 			if (logger.isTraceEnabled()) {
-				if (isSingletonCurrentlyInCreation(beanName)) {
+				if (isSingletonCurrentlyInCreation(beanName)) { // 如果当前要创建的bean正在被创建中，那么说明产生了循环依赖,这里打印警告
 					logger.trace("Returning eagerly cached instance of singleton bean '" + beanName +
 							"' that is not fully initialized yet - a consequence of a circular reference");
 				}
 				else {
-					logger.trace("Returning cached instance of singleton bean '" + beanName + "'");
+					logger.trace("Returning cached instance of singleton bean '" + beanName + "'"); // 这里是第一种情况,也即是从单例池中获取的
 				}
 			}
+			// forcus 决定是返回工厂bean,还是产品bean
+			/*
+				这里面也有一些点需要注意：
+					1. 产品bean也可能产生循环依赖
+					2.产品bean也需要后置处理：为什么要在这里做后置处理呢？
+			 */
 			beanInstance = getObjectForBeanInstance(sharedInstance, name, beanName, null);
 		}
-
+		// forcus 第一次实例化的时候走这里
 		else {
 			// Fail if we're already creating this bean instance:
 			// We're assumably within a circular reference.
+			/*
+				原型bean(多例bean)不支持循环依赖，因为每次都是创建一个新的实例，无法暴露早期引用
+			 */
 			if (isPrototypeCurrentlyInCreation(beanName)) {
 				throw new BeanCurrentlyInCreationException(beanName);
 			}
 
 			// Check if bean definition exists in this factory.
+			// 父容器场景,不关心
 			BeanFactory parentBeanFactory = getParentBeanFactory();
 			if (parentBeanFactory != null && !containsBeanDefinition(beanName)) {
 				// Not found -> check parent.
@@ -305,7 +324,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				else {
 					return (T) parentBeanFactory.getBean(nameToLookup);
 				}
-			}
+			} // end parent container
 
 			if (!typeCheckOnly) {
 				markBeanAsCreated(beanName);
@@ -321,16 +340,24 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.
+				// forcus 显示的处理依赖@DependsOn，用来显示的指定bean的实例化顺序
+				// 但是,好像一般很少看到使用@DependsOn的
 				String[] dependsOn = mbd.getDependsOn();
 				if (dependsOn != null) {
 					for (String dep : dependsOn) {
+						// 检查循环依赖,forcus 对于@DependsOn造成的循环依赖，spring是不会解决的,默认是直接抛出异常，因为不符合语义
 						if (isDependent(beanName, dep)) {
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 									"Circular depends-on relationship between '" + beanName + "' and '" + dep + "'");
 						}
+						/*
+							内部维护了两个重要的集合
+								- dependentBeanMap：beanName -> 依赖它的Bean集合 -> {A → [B, C]} 表示B、C依赖A
+								- dependenciesForBeanMap：-> beanName → 它依赖的Bean集合 -> {B → [A]} 表示B依赖A
+						 */
 						registerDependentBean(dep, beanName);
 						try {
-							getBean(dep);
+							getBean(dep); // 首先实例化当前bean依赖的bean
 						}
 						catch (NoSuchBeanDefinitionException ex) {
 							throw new BeanCreationException(mbd.getResourceDescription(), beanName,
@@ -340,6 +367,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 				}
 
 				// Create bean instance.
+				/*
+					forcus 真正的准备创建单例bean了
+				 */
 				if (mbd.isSingleton()) {
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
@@ -355,7 +385,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					});
 					beanInstance = getObjectForBeanInstance(sharedInstance, name, beanName, mbd);
 				}
-
+				// protype bean 不关心
 				else if (mbd.isPrototype()) {
 					// It's a prototype -> create a new instance.
 					Object prototypeInstance = null;
@@ -368,7 +398,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					}
 					beanInstance = getObjectForBeanInstance(prototypeInstance, name, beanName, mbd);
 				}
-
+				// 其他类型的作用域 不关心
 				else {
 					String scopeName = mbd.getScope();
 					if (!StringUtils.hasLength(scopeName)) {
@@ -406,7 +436,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 		}
 
-		return adaptBeanInstance(name, beanInstance, requiredType);
+		return adaptBeanInstance(name, beanInstance, requiredType); // 类型转化,返回
 	}
 
 	@SuppressWarnings("unchecked")
@@ -1159,16 +1189,32 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 
 	@Override
 	public boolean isFactoryBean(String name) throws NoSuchBeanDefinitionException {
+		/*
+			标准化beanName,注意这里是从getBean("beanName")调用进来的,
+			所以这里可能是想要工厂Bean("myFactoryBean"),也可能是想要产品Bean("&myFactoryBean")
+			因为这里要判断的是 myFactoryBean 本身是否是一个工厂Bean，所以在这里需要规范化beanName
+			 -- beanName = "myFactoryBean"
+		 */
 		String beanName = transformedBeanName(name);
+		// forcus 从单例池中获取,不允许早期引用
 		Object beanInstance = getSingleton(beanName, false);
+		// 如果已经实例化过了，那么判断是否是 FactoryBean 的子类即可
 		if (beanInstance != null) {
 			return (beanInstance instanceof FactoryBean);
 		}
 		// No singleton instance found -> check bean definition.
+		// 否则还未实例化(容器刷新时会走到这一步)
+		/*
+			forcus 如果当前容器中没有这个Bean定义,那么就委托给父容器
+			这种父子容器的场景比较少,通常出现在SpringMVC中,所以这里委托给父容器的逻辑暂时不需要关心
+			在介绍SpringMVC源码时会介绍父子容器相关的概念
+		 */
 		if (!containsBeanDefinition(beanName) && getParentBeanFactory() instanceof ConfigurableBeanFactory) {
 			// No bean definition found in this factory -> delegate to parent.
 			return ((ConfigurableBeanFactory) getParentBeanFactory()).isFactoryBean(name);
 		}
+		// forcus 在 mergedBeanDefinitions 中的beanDef有个字段单独记录了当前bean是否是工厂Bean
+		// isFactoryBean字段
 		return isFactoryBean(beanName, getMergedLocalBeanDefinition(beanName));
 	}
 
@@ -1871,6 +1917,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			Object beanInstance, String name, String beanName, @Nullable RootBeanDefinition mbd) {
 
 		// Don't let calling code try to dereference the factory if the bean isn't a factory.
+		// forcus 处理&前缀请求（要工厂bean）
 		if (BeanFactoryUtils.isFactoryDereference(name)) {
 			if (beanInstance instanceof NullBean) {
 				return beanInstance;
@@ -1881,31 +1928,40 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			if (mbd != null) {
 				mbd.isFactoryBean = true;
 			}
-			return beanInstance;
+			return beanInstance; // 直接返回工厂bean本身
 		}
 
 		// Now we have the bean instance, which may be a normal bean or a FactoryBean.
 		// If it's a FactoryBean, we use it to create a bean instance, unless the
 		// caller actually wants a reference to the factory.
 		if (!(beanInstance instanceof FactoryBean)) {
-			return beanInstance;
+			return beanInstance; // 如果是普通bean，那么直接返回，如果是早期引用，那么也会直接返回
 		}
+
+		// forcus 处理 产品bena
 
 		Object object = null;
 		if (mbd != null) {
-			mbd.isFactoryBean = true;
+			mbd.isFactoryBean = true; // mbd != null：首次创建流程，需要走完整逻辑
 		}
-		else {
+		else { // 直接从缓存中获取
 			object = getCachedObjectForFactoryBean(beanName);
 		}
 		if (object == null) {
 			// Return bean instance from factory.
-			FactoryBean<?> factory = (FactoryBean<?>) beanInstance;
+			FactoryBean<?> factory = (FactoryBean<?>) beanInstance; // forcus 将当前bean转换为FactoryBean类型
 			// Caches object obtained from FactoryBean if it is a singleton.
 			if (mbd == null && containsBeanDefinition(beanName)) {
 				mbd = getMergedLocalBeanDefinition(beanName);
 			}
+			/*
+				forcus 判断是否是合成bean
+					- 合成bean：框架内部生成的(比如AOP代理)，不需要后置处理
+					- 非合成bean：非合成Bean需要执行postProcessObjectFromFactoryBean()
+			 */
 			boolean synthetic = (mbd != null && mbd.isSynthetic());
+			// forcus 调用 FactoryBean.getObject()
+			// beanName = “myFactoryBean”
 			object = getObjectFromFactoryBean(factory, beanName, !synthetic);
 		}
 		return object;

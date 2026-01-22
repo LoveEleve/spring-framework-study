@@ -36,23 +36,36 @@ public class MyDeferredImportSelector implements DeferredImportSelector {
     
     /**
      * 自定义分组处理器
+     * 
+     * 重要：Entry 中的 metadata 必须是「导入方配置类」的元数据（如 CoreMainConfig），
+     * 而不是 DeferredImportSelector 本身的元数据！
+     * 因为后续处理时会用这个 metadata 从 configurationClasses Map 中查找配置类。
      */
     public static class MyDeferredImportGroup implements Group {
+        
+        // 保存收集到的 Entry
+        private final java.util.List<Entry> entries = new java.util.ArrayList<>();
         
         @Override
         public void process(AnnotationMetadata metadata, DeferredImportSelector selector) {
             System.out.println("MyDeferredImportGroup.process() 被调用");
             System.out.println("处理选择器: " + selector.getClass().getSimpleName());
+            System.out.println("导入方配置类: " + metadata.getClassName());
+            
+            // 调用 selector.selectImports() 获取要导入的类名
+            String[] imports = selector.selectImports(metadata);
+            for (String importClassName : imports) {
+                // ✅ 关键：使用传入的 metadata（导入方配置类的元数据）
+                // 而不是 MyDeferredImportSelector 的元数据！
+                entries.add(new Entry(metadata, importClassName));
+            }
         }
         
         @Override
         public Iterable<Entry> selectImports() {
             System.out.println("MyDeferredImportGroup.selectImports() 被调用");
-            
-            return java.util.Arrays.asList(
-                new Entry(AnnotationMetadata.introspect(MyDeferredImportSelector.class), 
-                         AutoConfig.class.getName())
-            );
+            System.out.println("返回 " + entries.size() + " 个导入项");
+            return this.entries;
         }
     }
 }

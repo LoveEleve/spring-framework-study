@@ -70,7 +70,7 @@ public abstract class ApplicationEvent extends EventObject {
 	 * @see #ApplicationEvent(Object)
 	 * @see #ApplicationEvent(Object, Clock)
 	 */
-	public final long getTimestamp() {
+	public long getTimestamp() {
 		return this.timestamp;
 	}
 

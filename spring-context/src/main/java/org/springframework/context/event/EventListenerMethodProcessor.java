@@ -93,8 +93,7 @@ public class EventListenerMethodProcessor
 	public EventListenerMethodProcessor() {
 		if (shouldIgnoreSpel) {
 			this.evaluator = null;
-		}
-		else {
+		} else {
 			this.evaluator = new EventExpressionEvaluator();
 		}
 	}
@@ -106,14 +105,20 @@ public class EventListenerMethodProcessor
 		this.applicationContext = (ConfigurableApplicationContext) applicationContext;
 	}
 
+	// forcus 处理@EventListener的核心方法
 	@Override
 	public void postProcessBeanFactory(ConfigurableListableBeanFactory beanFactory) {
-		this.beanFactory = beanFactory;
-
+		this.beanFactory = beanFactory; // 保存beanFactory引用
+		// forcus 获取工厂中所有EventListenerFactory类型的bean
+		/*
+			在这里默认只有一个 DefaultEventListenerFactory，forcus 这个优先级是最低的
+			但是spring还支持 TransactionalEventListenerFactory (这个是只有在开启事务的时候才会支持)
+			 - @EnableTransactionManagement (暂时可以不关心)
+		 */
 		Map<String, EventListenerFactory> beans = beanFactory.getBeansOfType(EventListenerFactory.class, false, false);
 		List<EventListenerFactory> factories = new ArrayList<>(beans.values());
-		AnnotationAwareOrderComparator.sort(factories);
-		this.eventListenerFactories = factories;
+		AnnotationAwareOrderComparator.sort(factories); // 对 EventListenerFactory 进行排序, 确保工厂按照优先级顺序处理事件监听器
+		this.eventListenerFactories = factories; // 保存排序后的工厂列表
 	}
 
 
@@ -127,8 +132,7 @@ public class EventListenerMethodProcessor
 				Class<?> type = null;
 				try {
 					type = AutoProxyUtils.determineTargetClass(beanFactory, beanName);
-				}
-				catch (Throwable ex) {
+				} catch (Throwable ex) {
 					// An unresolvable bean type, probably from a lazy bean - let's ignore it.
 					if (logger.isDebugEnabled()) {
 						logger.debug("Could not resolve target class for bean with name '" + beanName + "'", ex);
@@ -142,8 +146,7 @@ public class EventListenerMethodProcessor
 							if (targetClass != null) {
 								type = targetClass;
 							}
-						}
-						catch (Throwable ex) {
+						} catch (Throwable ex) {
 							// An invalid scoped proxy arrangement - let's ignore it.
 							if (logger.isDebugEnabled()) {
 								logger.debug("Could not resolve target bean for scoped proxy '" + beanName + "'", ex);
@@ -152,8 +155,7 @@ public class EventListenerMethodProcessor
 					}
 					try {
 						processBean(beanName, type);
-					}
-					catch (Throwable ex) {
+					} catch (Throwable ex) {
 						throw new BeanInitializationException("Failed to process @EventListener " +
 								"annotation on bean with name '" + beanName + "'", ex);
 					}
@@ -172,8 +174,7 @@ public class EventListenerMethodProcessor
 				annotatedMethods = MethodIntrospector.selectMethods(targetType,
 						(MethodIntrospector.MetadataLookup<EventListener>) method ->
 								AnnotatedElementUtils.findMergedAnnotation(method, EventListener.class));
-			}
-			catch (Throwable ex) {
+			} catch (Throwable ex) {
 				// An unresolvable type in a method signature, probably from a lazy bean - let's ignore it.
 				if (logger.isDebugEnabled()) {
 					logger.debug("Could not resolve methods for bean with name '" + beanName + "'", ex);
@@ -185,8 +186,7 @@ public class EventListenerMethodProcessor
 				if (logger.isTraceEnabled()) {
 					logger.trace("No @EventListener annotations found on bean class: " + targetType.getName());
 				}
-			}
-			else {
+			} else {
 				// Non-empty set of methods
 				ConfigurableApplicationContext context = this.applicationContext;
 				Assert.state(context != null, "No ApplicationContext set");

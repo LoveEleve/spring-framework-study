@@ -961,14 +961,48 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		// Iterate over a copy to allow for init methods which in turn register new bean definitions.
 		// While this may not be part of the regular factory bootstrap, it does otherwise work fine.
-		List<String> beanNames = new ArrayList<>(this.beanDefinitionNames);
+		List<String> beanNames = new ArrayList<>(this.beanDefinitionNames); // 复制Bean名称列表
 
 		// Trigger initialization of all non-lazy singleton beans...
+		// forcus for循环处理所以的beanName(此时用户所有的业务bean都已经解析,但是只有beanName,还没有bean_instance(实例))
 		for (String beanName : beanNames) {
+			/*
+				forcus 处理BeanDefinition继承,将父子定义合并为完整的 RootBeanDefinition
+				这里需要注意的是,在spring/springboot中父子bean几乎是不存在的,这个算是旧时代的产物了
+				  -- 在这里主要是做类型转换 & 缓存
+				  	- 会将 GenericBeanDefinition / AnnotatedGenericBeanDefinition 转换为 RootBeanDefinition 并缓存
+			 */
 			RootBeanDefinition bd = getMergedLocalBeanDefinition(beanName);
+			/*
+				forcus 准备实例化对象了
+				条件：非抽象 / 单例 / 非懒加载
+			 */
 			if (!bd.isAbstract() && bd.isSingleton() && !bd.isLazyInit()) {
+				/*
+					1.FactoryBean：forcus
+						对于FactoryBean来说，这里存在两个对象
+						 1.FactoryBean对象本身：这也被称为工厂Bean
+						 2.通过getObject(&xxx)返回的真正需要的Bean对象 这里需要加上一个&号才能真正的获取到Bean对象
+					2.为什么需要这个FactoryBean机制呢？也即多一种生产Bean的机制呢？
+						原因是因为有些Bean不能简单的通过new来创建(反射也一样是通过newInstance()来创建的)，需要经过复杂的处理后才能被使用
+					3.在Spring中内置了许多FactoryBean(100+),比如 ProxyFactoryBean(	getObject()返回AOP 代理对象，用来进行AOP代理)
+				 */
+				/*
+					forcus 如何判断当前Bean是否是FactoryBean呢？
+					===
+					除了关注这个 SmartFactoryBean的逻辑外，直接进入到 getBean(beanName) 方法中
+				 */
 				if (isFactoryBean(beanName)) {
-					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName);
+					// forcus 当前beanName对应的bean确实是一个工厂Bean
+					// 注意,这里首先获取的是FactoryBean对象,即使想要获取的是产品Bean(&beanName获取的是工厂Bean哦,而不是产品Bean)
+					// 因为在这里需要判断检查工厂的配置：SmartFactoryBean.isEagerInit()
+					// forcus 这里还涉及到了一个 SmartFactoryBean,这个接口是FactoryBean的子接口,相比于FactoryBean多了一个 isEagerInit() 方法
+					/*
+						可以控制初始化的时机
+						因为对于FactoryBean来说,在spring容器启动时,只会实例化工厂Bean本身,是不会实例化产品Bean的
+						而对于 SmartFactoryBean 来说 isEagerInit() = true时，会要求spring在启动时就实例化产品Bean
+					 */
+					Object bean = getBean(FACTORY_BEAN_PREFIX + beanName); // 这里已经实例化了工厂Bean对象了
 					if (bean instanceof FactoryBean) {
 						FactoryBean<?> factory = (FactoryBean<?>) bean;
 						boolean isEagerInit;
@@ -981,17 +1015,19 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 							isEagerInit = (factory instanceof SmartFactoryBean &&
 									((SmartFactoryBean<?>) factory).isEagerInit());
 						}
-						if (isEagerInit) {
-							getBean(beanName);
+						if (isEagerInit) { // 如果是eagerInit,则需要实例化产品Bean
+							getBean(beanName); // forcus 注意哦,这里可是没有&号的哦~~
 						}
 					}
 				}
 				else {
-					getBean(beanName);
+					// forcus 当前bean是一个普通的bean实例(非工厂Bean)
+					getBean(beanName); // forcus 核心方法
 				}
 			}
 		}
 
+		// forcus ====> 执行到这里,所有的bean都已经实例化了
 		// Trigger post-initialization callback for all applicable beans...
 		for (String beanName : beanNames) {
 			Object singletonInstance = getSingleton(beanName);

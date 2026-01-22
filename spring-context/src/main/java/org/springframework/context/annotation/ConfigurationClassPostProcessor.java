@@ -271,8 +271,15 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			// Simply call processConfigurationClasses lazily at this point then.
 			processConfigBeanDefinitions((BeanDefinitionRegistry) beanFactory);
 		}
-
+		// forcus 增强代理类,对Full类型的配置类进行CGLIB代理增强
+		/*
+			这里再次回顾一下: 为什么要对Full类型的配置类进行CGLIB代理增强呢？
+			目的：为了保证@Bean注解的单例语义
+			 - 配置类中一个@Bean方法调用另一个@Bean方法时，返回的是同一个实例
+		 */
 		enhanceConfigurationClasses(beanFactory);
+		// forcus 添加ImportAware支持, 在这里添加一个BPP后置处理器
+		// 该后置处理器的作用：支持实现了ImportAware接口的配置类获取导入方的注解元数据
 		beanFactory.addBeanPostProcessor(new ImportAwareBeanPostProcessor(beanFactory));
 	}
 
@@ -381,6 +388,10 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			parser.parse(candidates);
 			parser.validate();
 			// forcus 获取所有解析后的配置类
+			/*
+				在这里需要额外注意的一点是: 对于被@Import()导入的配置类,只会创建 ConfigurationClass，并且标注isImported=true (标记这是一个被导入的配置类)
+				forcus 但是是不会注册为BeanDefinition的
+			 */
 			Set<ConfigurationClass> configClasses = new LinkedHashSet<>(parser.getConfigurationClasses());
 			// 从 configClasses 中移除已经处理过的配置类，只保留本次新解析出来的配置类，避免重复处理
 			configClasses.removeAll(alreadyParsed);
@@ -412,6 +423,10 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			processConfig.tag("classCount", () -> String.valueOf(configClasses.size())).end();
 
 			candidates.clear();
+			// forcus 下面的逻辑是处理新增加的配置类
+			// 因为在上面的 this.reader.loadBeanDefinitions(configClasses)流程中
+			// 可能会增加新的配置类，比如 getImportBeanDefinitionRegistrars()方法
+			// 如果有,那么逻辑会重复
 			if (registry.getBeanDefinitionCount() > candidateNames.length) {
 				String[] newCandidateNames = registry.getBeanDefinitionNames();
 				Set<String> oldCandidateNames = new HashSet<>(Arrays.asList(candidateNames));
@@ -435,6 +450,14 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 
 		// Register the ImportRegistry as a bean in order to support ImportAware @Configuration classes
 		// forcus sbr通常就是 ApplicationContext
+		/*
+			注册ImportRegistry为单例Bean，以支持ImportAware配置类
+			ImportRegistry的作用：
+			 - ImportRegistry记录了所有通过@Import导入的配置类信息
+			 - 它维护了"谁导入了谁"的映射关系
+			当容器初始化实现了ImportAware接口的Bean时，ImportAwareBeanPostProcessor会：
+			 - 调用 ((ImportAware) bean).setImportMetadata(importingClass);
+		 */
 		if (sbr != null && !sbr.containsSingleton(IMPORT_REGISTRY_BEAN_NAME)) {
 			sbr.registerSingleton(IMPORT_REGISTRY_BEAN_NAME, parser.getImportRegistry());
 		}
@@ -452,11 +475,15 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 	 * Candidate status is determined by BeanDefinition attribute metadata.
 	 * @see ConfigurationClassEnhancer
 	 */
+	// forcus 增强Full类型的配置类(CGLIB代理)
 	public void enhanceConfigurationClasses(ConfigurableListableBeanFactory beanFactory) {
 		StartupStep enhanceConfigClasses = this.applicationStartup.start("spring.context.config-classes.enhance");
+		// forcus 创建map用于存储需要增强的配置类
 		Map<String, AbstractBeanDefinition> configBeanDefs = new LinkedHashMap<>();
+		// forcus 遍历所有的beanDef，筛选出对应的配置类
 		for (String beanName : beanFactory.getBeanDefinitionNames()) {
 			BeanDefinition beanDef = beanFactory.getBeanDefinition(beanName);
+			// forcus 获取CONFIGURATION_CLASS_ATTRIBUTE属性，这个属性在配置类解析时被设置
 			Object configClassAttr = beanDef.getAttribute(ConfigurationClassUtils.CONFIGURATION_CLASS_ATTRIBUTE);
 			AnnotationMetadata annotationMetadata = null;
 			MethodMetadata methodMetadata = null;
@@ -485,6 +512,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 					}
 				}
 			}
+			// forcus 筛选出Full类型的配置类
 			if (ConfigurationClassUtils.CONFIGURATION_CLASS_FULL.equals(configClassAttr)) {
 				if (!(beanDef instanceof AbstractBeanDefinition)) {
 					throw new BeanDefinitionStoreException("Cannot enhance @Configuration bean definition '" +
@@ -496,6 +524,7 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 							"is a non-static @Bean method with a BeanDefinitionRegistryPostProcessor " +
 							"return type: Consider declaring such methods as 'static'.");
 				}
+				// forcus 添加到 configBeanDefs 集合中去
 				configBeanDefs.put(beanName, (AbstractBeanDefinition) beanDef);
 			}
 		}
@@ -504,21 +533,29 @@ public class ConfigurationClassPostProcessor implements BeanDefinitionRegistryPo
 			enhanceConfigClasses.end();
 			return;
 		}
-
+		// forcus 执行CGLIB增强
+		// forcus-1 创建CGLIB增强器实例，这个类负责生成配置类的代理子类
 		ConfigurationClassEnhancer enhancer = new ConfigurationClassEnhancer();
+		// forcus-2 遍历 configBeanDefs 集合，对每个配置类进行增强
 		for (Map.Entry<String, AbstractBeanDefinition> entry : configBeanDefs.entrySet()) {
 			AbstractBeanDefinition beanDef = entry.getValue();
 			// If a @Configuration class gets proxied, always proxy the target class
+			// forcus 设置代理标记,这个属性告诉Spring的AOP系统：如果这个Bean需要被代理，必须使用类代理而不是接口代理
+			/*
+				CGLIB增强后的配置类是原类的子类
+				如果后续AOP再次代理，必须保持类继承关系
+				防止接口代理破坏CGLIB增强的效果
+			 */
 			beanDef.setAttribute(AutoProxyUtils.PRESERVE_TARGET_CLASS_ATTRIBUTE, Boolean.TRUE);
 			// Set enhanced subclass of the user-specified bean class
-			Class<?> configClass = beanDef.getBeanClass();
-			Class<?> enhancedClass = enhancer.enhance(configClass, this.beanClassLoader);
+			Class<?> configClass = beanDef.getBeanClass(); // 获取原始类
+			Class<?> enhancedClass = enhancer.enhance(configClass, this.beanClassLoader); // forcus 执行cglib增强
 			if (configClass != enhancedClass) {
 				if (logger.isTraceEnabled()) {
 					logger.trace(String.format("Replacing bean definition '%s' existing class '%s' with " +
 							"enhanced class '%s'", entry.getKey(), configClass.getName(), enhancedClass.getName()));
 				}
-				beanDef.setBeanClass(enhancedClass);
+				beanDef.setBeanClass(enhancedClass); // forcus 使用生成的代理类来替换掉beanDef中的原始类
 			}
 		}
 		enhanceConfigClasses.tag("classCount", () -> String.valueOf(configBeanDefs.keySet().size())).end();
