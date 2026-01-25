@@ -101,6 +101,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	private final Set<String> registeredSingletons = new LinkedHashSet<>(256);
 
 	/** Names of beans that are currently in creation. */
+	// forcus 记录当前正在创建的 Bean 名称,用于解决循环依赖
 	private final Set<String> singletonsCurrentlyInCreation =
 			Collections.newSetFromMap(new ConcurrentHashMap<>(16));
 
@@ -254,6 +255,9 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 		Assert.notNull(beanName, "Bean name must not be null");
 		synchronized (this.singletonObjects) {
 			Object singletonObject = this.singletonObjects.get(beanName);
+			/*
+				再次检查是否已经存在了,这种是防御性编程,不需要死扣
+			 */
 			if (singletonObject == null) {
 				if (this.singletonsCurrentlyInDestruction) {
 					throw new BeanCreationNotAllowedException(beanName,
@@ -263,13 +267,20 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 				if (logger.isDebugEnabled()) {
 					logger.debug("Creating shared instance of singleton bean '" + beanName + "'");
 				}
+				// forcus 标记Bean正在创建 - 将正在创建的beanName添加到singletonsCurrentlyInCreation集合中
 				beforeSingletonCreation(beanName);
 				boolean newSingleton = false;
+				/*
+					forcus 记录被抑制的异常
+					新特性,用于记录相关的异常信息，便于排查/调试,暂时不关心
+				 */
 				boolean recordSuppressedExceptions = (this.suppressedExceptions == null);
 				if (recordSuppressedExceptions) {
 					this.suppressedExceptions = new LinkedHashSet<>();
 				}
 				try {
+					// forcus 调用上面提供的ObjectFactory的getObject方法创建对象
+					// forcus 只需要关注 createBean()方法即可
 					singletonObject = singletonFactory.getObject();
 					newSingleton = true;
 				}
@@ -293,10 +304,11 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 					if (recordSuppressedExceptions) {
 						this.suppressedExceptions = null;
 					}
+					// forcus 标记bean创建完成，从 singletonsCurrentlyInCreation 移除掉上面添加的beanName
 					afterSingletonCreation(beanName);
 				}
 				if (newSingleton) {
-					addSingleton(beanName, singletonObject);
+					addSingleton(beanName, singletonObject); // forcus 添加到一级缓存中(单例池)
 				}
 			}
 			return singletonObject;
@@ -388,6 +400,15 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * <p>The default implementation register the singleton as currently in creation.
 	 * @param beanName the name of the singleton about to be created
 	 * @see #isSingletonCurrentlyInCreation
+	 */
+	/*
+		这里涉及到了两个集合,在低版本的源码中,通常只会看到 singletonsCurrentlyInCreation 这个集合，
+		 - singletonsCurrentlyInCreation：这个集合的作用是用来记录正在创建的beanName的，用来解决循环依赖的
+		 	- 触发时机在真正实例化Bean之前
+		 - inCreationCheckExclusions：这个是spring提供的一个灵活性机制，用于排除特殊Bean的循环依赖检查
+		 	- 如果某个beanName在这个集合中，那么不检查其循环依赖
+		 	- 这是因为某些bean的创建过程本身就很复杂，但是暂时没看到在哪里使用了这个特性
+		 	- 目前只需要关注 singletonsCurrentlyInCreation 这个集合即可
 	 */
 	protected void beforeSingletonCreation(String beanName) {
 		if (!this.inCreationCheckExclusions.contains(beanName) && !this.singletonsCurrentlyInCreation.add(beanName)) {

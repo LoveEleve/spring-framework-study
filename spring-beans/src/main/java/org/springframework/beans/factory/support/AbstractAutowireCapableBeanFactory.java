@@ -514,6 +514,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * populates the bean instance, applies post-processors, etc.
 	 * @see #doCreateBean
 	 */
+	// forcus 实例化Bean
 	@Override
 	protected Object createBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
 			throws BeanCreationException {
@@ -526,6 +527,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Make sure bean class is actually resolved at this point, and
 		// clone the bean definition in case of a dynamically resolved Class
 		// which cannot be stored in the shared merged bean definition.
+		// forcus 解析bean的Class
 		Class<?> resolvedClass = resolveBeanClass(mbd, beanName);
 		if (resolvedClass != null && !mbd.hasBeanClass() && mbd.getBeanClassName() != null) {
 			mbdToUse = new RootBeanDefinition(mbd);
@@ -534,6 +536,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Prepare method overrides.
 		try {
+			// forcus @Lookup相关处理,很少看到应用,暂时不需要关心
 			mbdToUse.prepareMethodOverrides();
 		}
 		catch (BeanDefinitionValidationException ex) {
@@ -543,6 +546,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		try {
 			// Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+			// forcus 给 BeanPostProcessors 一个机会去返回一个代理对象 而不是目标对象
+			// forcus 这里是专门针对于 InstantiationAwareBeanPostProcessor 的回调点
+			// forcus 不过需要注意的是,通常代理的创建是不会在实例化前进行的，通常是在实例化之后(也即在构造函数/属性填充之后才会进行代理)
+			// 所以这里可以不关心
+			/*
+				专门针对特殊的AOP,如果在这里就返回了代理bean对象，那么会直接返回
+					- 跳过正常的Bean创建流程（不会调用构造函数、不会进行属性填充等）
+					- 直接调用 postProcessAfterInitialization，给其他后置处理器一个处理代理对象的机会
+					- 立即返回这个对象作为Bean实例
+			 */
 			Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
 			if (bean != null) {
 				return bean;
@@ -554,6 +567,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		try {
+			// forcus 真正的创建
 			Object beanInstance = doCreateBean(beanName, mbdToUse, args);
 			if (logger.isTraceEnabled()) {
 				logger.trace("Finished creating instance of bean '" + beanName + "'");
@@ -585,6 +599,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see #instantiateUsingFactoryMethod
 	 * @see #autowireConstructor
 	 */
+	// forcu 真正的创建
 	protected Object doCreateBean(String beanName, RootBeanDefinition mbd, @Nullable Object[] args)
 			throws BeanCreationException {
 
@@ -593,16 +608,36 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		if (mbd.isSingleton()) {
 			instanceWrapper = this.factoryBeanInstanceCache.remove(beanName);
 		}
+		// forcus 创建bean实例
 		if (instanceWrapper == null) {
+			/*
+				forcus 创建实例bean，这个方法的目的很简单，就是创建对象，但是内部的实现却很复杂,在这里简单做个总结(可能是错误的)
+				比较常见的就是2/4/6了，但是也没必要深入到源码中，了解即可
+
+				 1. Supplier方式 ：最高优先级
+				 2. @Bean方法 forcus
+				 3. 缓存的构造器/工厂方法（性能优化）：这个通常用于原型Bean, 第二次或者多次创建时,可以复用已经解析过的构造器
+				 		==> 暂时不关心,原型bean很少使用
+				 4.BPP推断的构造器：也即构造器注入 (@Autowired 标注的构造器、只有一个带参构造器) forcus
+				 5.首选构造器
+				 6.无参构造器 forcus
+			 */
 			instanceWrapper = createBeanInstance(beanName, mbd, args);
 		}
-		Object bean = instanceWrapper.getWrappedInstance();
-		Class<?> beanType = instanceWrapper.getWrappedClass();
+
+		// === forcus 这里提醒一下,在上面只是实例化了bean对象,并没有执行其他的操作 - 比如 初始化 / 属性填充 / ... / 其他操作 ====
+		Object bean = instanceWrapper.getWrappedInstance(); // 获取真正的bean对象(被包装了一层)
+		Class<?> beanType = instanceWrapper.getWrappedClass();  // 获取Bean的实际类型
 		if (beanType != NullBean.class) {
-			mbd.resolvedTargetType = beanType;
+			mbd.resolvedTargetType = beanType; // 缓存解析后的目标类型到beanDef中
 		}
 
 		// Allow post-processors to modify the merged bean definition.
+		/*
+			forcus 获取所有类型为 MergedBeanDefinitionPostProcessor 的后置处理器 (BPP后置处理器)
+
+			spring启动的时候默认只有3个 MergedBeanDefinitionPostProcessor 类型的 BPP
+		 */
 		synchronized (mbd.postProcessingLock) {
 			if (!mbd.postProcessed) {
 				try {
@@ -1126,6 +1161,7 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param beanName the name of the bean
 	 * @see MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
 	 */
+
 	protected void applyMergedBeanDefinitionPostProcessors(RootBeanDefinition mbd, Class<?> beanType, String beanName) {
 		for (MergedBeanDefinitionPostProcessor processor : getBeanPostProcessorCache().mergedDefinition) {
 			processor.postProcessMergedBeanDefinition(mbd, beanType, beanName);
@@ -1147,9 +1183,9 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 				Class<?> targetType = determineTargetType(beanName, mbd);
 				if (targetType != null) {
-					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName);
+					bean = applyBeanPostProcessorsBeforeInstantiation(targetType, beanName); // forcus 这里是针对 InstantiationAwareBeanPostProcessor的
 					if (bean != null) {
-						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName);
+						bean = applyBeanPostProcessorsAfterInitialization(bean, beanName); // forcus 而这里是针对所有的 BPP的
 					}
 				}
 			}
@@ -1192,20 +1228,62 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @see #autowireConstructor
 	 * @see #instantiateBean
 	 */
+	/*
+		forcus 当前方法决定了如何创建bean实例,支持多种实例化策略
+			- 会按照优先级依次尝试不同的实例化方式
+	 */
 	protected BeanWrapper createBeanInstance(String beanName, RootBeanDefinition mbd, @Nullable Object[] args) {
 		// Make sure bean class is actually resolved at this point.
+		// forcus 解析bean的Class
 		Class<?> beanClass = resolveBeanClass(mbd, beanName);
 
 		if (beanClass != null && !Modifier.isPublic(beanClass.getModifiers()) && !mbd.isNonPublicAccessAllowed()) {
 			throw new BeanCreationException(mbd.getResourceDescription(), beanName,
 					"Bean class isn't public, and non-public access not allowed: " + beanClass.getName());
 		}
-
+		/*
+			forcus-1 通过 Supplier 创建实例 优先级最高
+			Supplier<?> 是Spring 5.0 引入的编程式bean注册机制，它提供了一种更灵活的bean实例化方式。
+			通过supplier.get()方法来获取bean实例
+			它只负责bean实例的初始化，并不会影响bean的生命周期
+		 */
 		Supplier<?> instanceSupplier = mbd.getInstanceSupplier();
 		if (instanceSupplier != null) {
 			return obtainFromSupplier(instanceSupplier, beanName);
 		}
+		/*
+			forcus-2 处理@Bean方法创建bean实例的流程
+			这里需要回顾一下的是：@Bean方法在配置类解析阶段就已经处理过了,结果如下：
+			  1. @Bean -> BeanDefinition
+			  2. 这个BeanDefinition内部有两个属性
+			  	- factoryBeanName = 配置类的beanName（如 "appConfig"）
+			  	- factoryMethodName = @Bean方法名（如 "userService"）
+		 */
+		/*
+			instantiateUsingFactoryMethod():该方法很复杂,就不深入进去阅读了 (不影响主流程)
+			但是主要干了什么还是要简单了解一下的,以下面的例子来说明一下：
+			==
+			创建dataSource / jdbcTemplate
+				1. 先获取AppConfig这个bean实例
+				2. 找到对应的方法：dataSource() / jdbcTemplate(DataSource dataSource)
+				3. 反射调用, forcus 但是额外需要注意的一点是：对于参数需要进行注入，也即去容器中找对应的参数bean，然后注入
+			@Configuration
+			public class AppConfig {
 
+				@Bean
+				public DataSource dataSource() {
+					HikariDataSource ds = new HikariDataSource();
+					ds.setJdbcUrl("jdbc:mysql://localhost/test");
+					return ds;
+				}
+
+				@Bean
+				public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+					return new JdbcTemplate(dataSource);
+				}
+			}
+
+		 */
 		if (mbd.getFactoryMethodName() != null) {
 			return instantiateUsingFactoryMethod(beanName, mbd, args);
 		}

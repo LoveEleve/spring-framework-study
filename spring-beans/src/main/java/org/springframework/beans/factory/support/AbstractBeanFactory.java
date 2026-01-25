@@ -371,6 +371,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 					forcus 真正的准备创建单例bean了
 				 */
 				if (mbd.isSingleton()) {
+					// forcus 这里调用的是重载版本的 - getSingleton(String, ObjectFactory<?>)
 					sharedInstance = getSingleton(beanName, () -> {
 						try {
 							return createBean(beanName, mbd, args);
