@@ -122,10 +122,10 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 		stopBeans();
 		this.running = false;
 	}
-
+	// forcus
 	@Override
 	public void onRefresh() {
-		startBeans(true);
+		startBeans(true); // autoStartupOnly = true，只启动自动启动的 Bean
 		this.running = true;
 	}
 
@@ -142,20 +142,23 @@ public class DefaultLifecycleProcessor implements LifecycleProcessor, BeanFactor
 
 
 	// Internal helpers
-
+	// forcus 在这里使用 startBeans.md 来简单介绍一下
 	private void startBeans(boolean autoStartupOnly) {
+		// 1. 获取所有实现了 Lifecycle 类型的 Bean
 		Map<String, Lifecycle> lifecycleBeans = getLifecycleBeans();
+		// 2. 按 phase 分组（TreeMap 保证按 key 排序）
 		Map<Integer, LifecycleGroup> phases = new TreeMap<>();
-
+		// 3. 遍历所有 Lifecycle Bean，分组
 		lifecycleBeans.forEach((beanName, bean) -> {
+			// forcus autoStartupOnly=true 时，只处理 SmartLifecycle 且 isAutoStartup()=true 的 Bean
 			if (!autoStartupOnly || (bean instanceof SmartLifecycle && ((SmartLifecycle) bean).isAutoStartup())) {
-				int startupPhase = getPhase(bean);
+				int startupPhase = getPhase(bean); // 获取启动阶段
 				phases.computeIfAbsent(startupPhase,
 						phase -> new LifecycleGroup(phase, this.timeoutPerShutdownPhase, lifecycleBeans, autoStartupOnly)
 				).add(beanName, bean);
 			}
 		});
-
+		// 4. 按 phase 从小到大依次启动
 		if (!phases.isEmpty()) {
 			phases.values().forEach(LifecycleGroup::start);
 		}

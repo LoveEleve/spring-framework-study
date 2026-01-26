@@ -414,6 +414,13 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @param eventType the resolved event type, if known
 	 * @since 4.2
 	 */
+	// forcus 发布容器刷新完毕的事件
+	/*
+		java.util.EventObject
+			└── ApplicationEvent
+					└── ApplicationContextEvent
+							└── ContextRefreshedEvent  // 容器刷新完成事件
+	 */
 	protected void publishEvent(Object event, @Nullable ResolvableType eventType) {
 		Assert.notNull(event, "Event must not be null");
 
@@ -434,10 +441,12 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 			this.earlyApplicationEvents.add(applicationEvent);
 		}
 		else {
+			// 这里容器已经刷新完毕了,所以直接通过 事件广播器(默认实现为 SimpleApplicationEventMulticaster) 来广播事件
 			getApplicationEventMulticaster().multicastEvent(applicationEvent, eventType);
 		}
 
 		// Publish event via parent context as well...
+		// forcus 如果有父容器,则将事件发布到父容器
 		if (this.parent != null) {
 			if (this.parent instanceof AbstractApplicationContext) {
 				((AbstractApplicationContext) this.parent).publishEvent(event, eventType);
@@ -715,6 +724,8 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
+				// forcus  pring 容器 refresh() 的最后一步，标志着容器刷新完成
+				// 发布容器刷新完成事件
 				finishRefresh();
 			}
 
@@ -1018,14 +1029,18 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 * @see #LIFECYCLE_PROCESSOR_BEAN_NAME
 	 * @see org.springframework.context.support.DefaultLifecycleProcessor
 	 */
+
 	protected void initLifecycleProcessor() {
 		ConfigurableListableBeanFactory beanFactory = getBeanFactory();
+		// forcus 检查容器中是否已经注册了名为 "lifecycleProcessor" 的bean --> 这通常是用户自定义的
+		// 如果有,则使用用户的来作为 lifecycleProcessor
 		if (beanFactory.containsLocalBean(LIFECYCLE_PROCESSOR_BEAN_NAME)) {
 			this.lifecycleProcessor = beanFactory.getBean(LIFECYCLE_PROCESSOR_BEAN_NAME, LifecycleProcessor.class);
 			if (logger.isTraceEnabled()) {
 				logger.trace("Using LifecycleProcessor [" + this.lifecycleProcessor + "]");
 			}
 		}
+		// forcus 否则用户没有自定义,那么就使用默认的 --> DefaultLifecycleProcessor (LifecycleProcessor类型的)
 		else {
 			DefaultLifecycleProcessor defaultProcessor = new DefaultLifecycleProcessor();
 			defaultProcessor.setBeanFactory(beanFactory);
@@ -1177,12 +1192,29 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 		clearResourceCaches();
 
 		// Initialize lifecycle processor for this context.
+		// forcus 初始化生命周期处理器
+		/*
+			知识补充：生命周期处理器的作用是什么呢？
+				- 统一管理实现了 Lifecycle 接口的 Bean 的启动和停止 (通俗来讲,spring 容器启动/关闭时,需要启动/停止一些组件)
+				核心职责：
+					- onRefresh(): 容器启动完成时,启动所有 SmartLifecycle Bean
+					- onClose(): 容器关闭时,停止所有 Lifecycle Bean
+					- start() : 手动调用 context.start() , 启动所有 Lifecycle Bean
+					- stop() : 手动调用 context.stop() , 停止所有 Lifecycle Bean
+		 */
 		initLifecycleProcessor();
 
 		// Propagate refresh to lifecycle processor first.
+		// forcus 启动所有实现 Lifecycle 接口的 Bean
+		// 这里 getLifecycleProcessor()就是在上面初始化的 -- 默认为 DefaultLifecycleProcessor
+		// 然后调用 onRefresh() 方法 -- 内部最终调用到实现了 SmartLifecycle接口的bean的start() 方法
 		getLifecycleProcessor().onRefresh();
 
 		// Publish the final event.
+		// forcus 发布容器刷新完成事件
+		/*
+			创建了一个 ContextRefreshedEvent 对象：表示容器初始化或者刷新完成的事件
+		 */
 		publishEvent(new ContextRefreshedEvent(this));
 
 		// Participate in LiveBeansView MBean, if active.

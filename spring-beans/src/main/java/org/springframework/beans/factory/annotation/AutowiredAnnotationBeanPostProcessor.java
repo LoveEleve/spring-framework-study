@@ -249,9 +249,10 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 		this.metadataReaderFactory = new SimpleMetadataReaderFactory(this.beanFactory.getBeanClassLoader());
 	}
 
-
+	// forcus
 	@Override
 	public void postProcessMergedBeanDefinition(RootBeanDefinition beanDefinition, Class<?> beanType, String beanName) {
+		// forcus 查找或构建Bean的注入元数据
 		InjectionMetadata metadata = findAutowiringMetadata(beanName, beanType, null);
 		metadata.checkConfigMembers(beanDefinition);
 	}
@@ -459,7 +460,20 @@ public class AutowiredAnnotationBeanPostProcessor implements SmartInstantiationA
 					if (metadata != null) {
 						metadata.clear(pvs);
 					}
-					metadata = buildAutowiringMetadata(clazz);
+					/*
+						一:字段扫描
+							1. 遍历当前类的所有声明字段,调用 findAutowiredAnnotation() 检查字段是否有自动装配注解
+							2. 排除静态字段(spring不支持静态字段的注入) -> 为什么呢？
+							3. 解析注解的required属性
+							4. 为每个有效字段创建 AutowiredFieldElement 对象
+
+						二:方法扫描
+							1. 处理桥接方法（Bridge Methods）以支持泛型
+							2. 检查方法是否有自动装配注解
+							3. 排除静态方法
+							4. 创建AutowiredMethodElement对象
+					 */
+					metadata = buildAutowiringMetadata(clazz); // forcus
 					this.injectionMetadataCache.put(cacheKey, metadata);
 				}
 			}

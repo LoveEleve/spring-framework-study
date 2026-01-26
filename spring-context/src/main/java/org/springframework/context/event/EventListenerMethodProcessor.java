@@ -121,7 +121,12 @@ public class EventListenerMethodProcessor
 		this.eventListenerFactories = factories; // 保存排序后的工厂列表
 	}
 
-
+	/*
+		不过需要注意的是：在这里还需要注意一点，那就是在容器启动的时候，在postProcessBeanFactory()阶段还会获取所有的 EventListenerFactory(排序并保存)
+		但是默认spring的是：
+		- DefaultEventListenerFactory：处理普通的 @EventListener
+		- TransactionalEventListenerFactory：处理 @TransactionalEventListener (如果开启了事务了话),后续单独分析
+	 */
 	@Override
 	public void afterSingletonsInstantiated() {
 		ConfigurableListableBeanFactory beanFactory = this.beanFactory;
@@ -154,6 +159,11 @@ public class EventListenerMethodProcessor
 						}
 					}
 					try {
+						// forcus 核心处理逻辑
+						/*
+							为每个bean实例中标注了 @EventListener 方法 创建 ApplicationListener
+								- new ApplicationListenerMethodAdapter(beanName, type, method);
+						 */
 						processBean(beanName, type);
 					} catch (Throwable ex) {
 						throw new BeanInitializationException("Failed to process @EventListener " +

@@ -71,11 +71,15 @@ class ApplicationListenerDetector implements DestructionAwareBeanPostProcessor, 
 
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) {
+		// forcus 判断当前bean是否实现了ApplicationListener接口
 		if (bean instanceof ApplicationListener) {
 			// potentially not detected as a listener by getBeanNamesForType retrieval
 			Boolean flag = this.singletonNames.get(beanName);
+			// forcus 主要关注这里(单例的)，对于原型bean不关心
 			if (Boolean.TRUE.equals(flag)) {
 				// singleton bean (top-level or inner): register on the fly
+				// forcus 如果是单例的，那么将当前bean(ApplicationListener)注册到applicationContext中(更具体点是注册到 事件多播器中，默认是 SimpleApplicationEventMulticaster)
+				// 用于后续事件分发
 				this.applicationContext.addApplicationListener((ApplicationListener<?>) bean);
 			}
 			else if (Boolean.FALSE.equals(flag)) {

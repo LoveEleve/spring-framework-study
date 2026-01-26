@@ -445,7 +445,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	public Object initializeBean(Object existingBean, String beanName) {
 		return initializeBean(beanName, existingBean, null);
 	}
-
+	// forcus bean初始化前,调用所有BPP的 postProcessBeforeInitialization
+	/*
+		Spring5.3,x 默认注册了6个BPP后置处理器
+			- ApplicationContextAwareProcessor：处理7种Aware接口，把相应的对象注入给bean实例
+			- ImportAwareBeanPostProcessor：处理@Import导入类的元数据的注入
+			- BeanPostProcessorChecker：do nothing
+			- CommonAnnotationBeanPostProcessor:执行@PostConstruct
+			- AutowiredAnnotationBeanPostProcessor:do nothing
+			- ApplicationListenerDetector:do nothing
+	 */
 	@Override
 	public Object applyBeanPostProcessorsBeforeInitialization(Object existingBean, String beanName)
 			throws BeansException {
@@ -635,7 +644,6 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Allow post-processors to modify the merged bean definition.
 		/*
 			forcus 获取所有类型为 MergedBeanDefinitionPostProcessor 的后置处理器 (BPP后置处理器)
-
 			spring启动的时候默认只有3个 MergedBeanDefinitionPostProcessor 类型的 BPP
 		 */
 		synchronized (mbd.postProcessingLock) {
@@ -653,6 +661,14 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 
 		// Eagerly cache singletons to be able to resolve circular references
 		// even when triggered by lifecycle interfaces like BeanFactoryAware.
+		/*
+			forcus 循环依赖的相关处理
+			1. 判断是否需要早期暴露单例Bean
+				- 必须是单例bean,spring默认不解决原型bena的循环依赖问题,会直接抛出异常
+				- this.allowCircularReferences: 默认为true，可以通过 AbstractAutowireCapableBeanFactory.setAllowCircularReferences(false) 「某些严格的应用场景下可能禁用循环依赖来强制良好的设计」
+				- isSingletonCurrentlyInCreation(beanName): 判断当前单例bean是否正在创建中
+					- 这个早在前面的 beforeSingletonCreation(beanName) 就已经添加进去了 forcus
+		 */
 		boolean earlySingletonExposure = (mbd.isSingleton() && this.allowCircularReferences &&
 				isSingletonCurrentlyInCreation(beanName));
 		if (earlySingletonExposure) {
@@ -660,13 +676,51 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				logger.trace("Eagerly caching bean '" + beanName +
 						"' to allow for resolving potential circular references");
 			}
+			// forcus 添加bean的工厂方法 beanName -> singletonFactory 到三级缓存中去(singletonFactories)
+			/*
+				这个工厂方法只有在真正出现循环依赖的时候才会被调用,
+				工厂方法的核心目的:
+					- 获取早期引用：为循环依赖提供Bean的早期引用
+					- 支持AOP代理：通过SmartInstantiationAwareBeanPostProcessor处理代理对象
+					- 延迟代理创建：只有在真正需要时才创建代理对象
+			 */
 			addSingletonFactory(beanName, () -> getEarlyBeanReference(beanName, mbd, bean));
 		}
 
 		// Initialize the bean instance.
 		Object exposedObject = bean;
 		try {
+			// forcus 属性填充,在Bean实例化之后,为Bean填充属性值,包括依赖注入与属性值设置
+			/*
+				forcus 这里就是循环依赖的触发点,细节说实话,看了也记不住, 但是我觉得对于这个方法到底会进行哪些类型的属性注入，还是要有必要了解一下的
+					 - @Autowired 注解标注的(通常有 实例字段 和 setter()方法)
+					 - @Value 标注的字段(通常用来注入配置文件中的值)
+					 - JRS相关的注解,暂时不关心了
+
+					@Autowired 标注的 实例字段 以及 setter()方法 的注入本质上是先通过 getBean()去容器中获取对应的bean实例(如果没有就需要进行实例化bean)
+					然后再调用反射方法设置进去,
+					所以在这里调用getBean()的时候就会触发循环依赖
+
+				forcus 这里还需要关注的一点,就是spring并不是能够解决所有类型的循环依赖问题
+
+					- 能解决的
+						- setter() / 实例字段注入
+					- 不能解决的
+						- 构造器注入的循环依赖 --> 可以通过@Lazy来解决(但是最好的解决办法就是不要出现循环依赖,代码重构) forcus
+							- 原因：构造器注入发生在createBeanInstance()阶段，此时Bean还没有实例化完成，无法提前暴露到三级缓存中
+							- 抛出异常：BeanCurrentlyInCreationException
+						- AOP代理导致的循环依赖(特定场景) --> 可以通过@Lazy来解决(但是最好的解决办法就是不要出现循环依赖,代码重构)  forcus
+							- 当循环依赖中的Bean需要被AOP代理（如@Async、@Transactional），且早期引用与最终对象不一致时
+							{
+								ServiceB注入了ServiceA的早期引用（原始对象）
+								但ServiceA最终被@Async代理为代理对象
+								导致ServiceB持有的是原始对象，而不是最终的代理对象
+							}
+						- @DependsOn导致的循环依赖
+				forcus 后续对循环依赖进行单独的分析,这里目前只关心 属性填充,正常情况下，某个组件类的bean实例中的被@Autowired标注的字段以及setter()都已经注入完成了
+			 */
 			populateBean(beanName, mbd, instanceWrapper);
+			// forcus bean的初始化阶段
 			exposedObject = initializeBean(beanName, exposedObject, mbd);
 		}
 		catch (Throwable ex) {
@@ -678,14 +732,42 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 						mbd.getResourceDescription(), beanName, "Initialization of bean failed", ex);
 			}
 		}
-
+		// ======== doCreateBean()的最后一道安全检查 ======== 循环依赖与AOP代理一致性检查
+		// forcus 循环依赖与AOP代理一致性检查
+		// 允许早期引用
 		if (earlySingletonExposure) {
+			/*
+				获取早期单例引用，关键点在于,第二个参数为false (这代表不会去三级缓存中获取，而是去一级缓存 / 二级缓存)
+				如果返回值不为null,说明在populateBean()阶段发生了循环依赖
+			 */
 			Object earlySingletonReference = getSingleton(beanName, false);
+			/*
+				forcus 如果不为null,那么说明发生了循环依赖
+
+					- 其他 Bean 在注入当前 Bean 时，调用了 getEarlyBeanReference()，将早期引用放入了二级缓存
+					- earlySingletonReference == null：说明没有发生循环依赖，直接跳过检查
+			 */
 			if (earlySingletonReference != null) {
+				// forcus 对象一致性判断
+				/*
+					exposedObject == bean ：初始化后对象未被包装（未创建新代理）--> 使用早期引用作为最终对象
+					exposedObject != bean : 初始化后对象被包装了（创建了新代理）--> 进入一致性检查
+
+				 */
 				if (exposedObject == bean) {
 					exposedObject = earlySingletonReference;
 				}
+				// forcus
+				//  exposedObject != bean 初始化阶段创建了新的代理对象
+				//  && !allowRawInjectionDespiteWrapping：不允许注入原始对象（默认为 false）
+				//  && hasDependentBean(beanName)：有其他 Bean 依赖当前 Bean
 				else if (!this.allowRawInjectionDespiteWrapping && hasDependentBean(beanName)) {
+					/*
+						获取所有依赖当前 Bean 的 Bean 列表
+						过滤掉仅用于类型检查的临时 Bean
+						如果还有实际依赖的 Bean，抛出异常
+						circle.md文档中有做简单介绍
+					 */
 					String[] dependentBeans = getDependentBeans(beanName);
 					Set<String> actualDependentBeans = new LinkedHashSet<>(dependentBeans.length);
 					for (String dependentBean : dependentBeans) {
@@ -707,6 +789,13 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		}
 
 		// Register bean as disposable.
+		// forcus 为需要销毁回调的 Bean 注册销毁适配器，确保容器关闭时能正确执行 Bean 的销毁逻辑
+		/*
+			Bean需要被销毁的条件：
+				1. 实现 DisposableBean 接口 (Bean 有 destroy() 方法)
+				2. 实现 AutoCloseable 接口 (Bean 有 close() 方法)
+				3. 有 @PreDestroy 注解(由 CommonAnnotationBeanPostProcessor 处理)
+		 */
 		try {
 			registerDisposableBeanIfNecessary(beanName, bean, mbd);
 		}
@@ -1161,7 +1250,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 	 * @param beanName the name of the bean
 	 * @see MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition
 	 */
-
+	/*
+		在spring初始化时,默认会有三个MergedBeanDefinitionPostProcessor类型的BPP，分别为:
+			- CommonAnnotationBeanPostProcessor
+				- 处理@Resource / @PostConstruct / @PreDestroy 等JSR-250注解 (暂时可以不用关系)
+			- AutowiredAnnotationBeanPostProcessor forcus
+				- 处理自动装配注解, @Autowired / @Value / @Inject 等注解
+				- 核心作用: 扫描并缓存所有需要自动装配的字段和方法信息
+			- ApplicationListenerDetector forcus
+				- 检查Bean类型是否实现了ApplicationListener接口，记录相关信息，会在后续Bean初始化完成后的postProcessAfterInitialization方法中使用，
+				- 决定是否将监听器注册到ApplicationContext中
+	 */
 	protected void applyMergedBeanDefinitionPostProcessors(RootBeanDefinition mbd, Class<?> beanType, String beanName) {
 		for (MergedBeanDefinitionPostProcessor processor : getBeanPostProcessorCache().mergedDefinition) {
 			processor.postProcessMergedBeanDefinition(mbd, beanType, beanName);
@@ -1488,6 +1587,17 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		// Give any InstantiationAwareBeanPostProcessors the opportunity to modify the
 		// state of the bean before properties are set. This can be used, for example,
 		// to support styles of field injection.
+		/*
+			forcus 判断在容器中是否有 InstantiationAwareBeanPostProcessor 类型的后置处理器
+			自定义字段注入的理想实际,为什么是理想时机呢? 该后置处理器所处的时机为：
+				- bean实例已经创建
+					- InstantiationAwareBeanPostProcessor(object , beanName)
+					  该后置处理器能够控制属性填充的流程
+					  	- 返回true,那么继续正常的属性填充流程
+					  	- 返回false,跳过后续的属性填充，直接从populateBean()方法返回,进行bean的初始化操作
+				- 属性还未填充(还未自动装配)
+
+		 */
 		if (!mbd.isSynthetic() && hasInstantiationAwareBeanPostProcessors()) {
 			for (InstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().instantiationAware) {
 				if (!bp.postProcessAfterInstantiation(bw.getWrappedInstance(), beanName)) {
@@ -1521,6 +1631,8 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 				pvs = mbd.getPropertyValues();
 			}
 			for (InstantiationAwareBeanPostProcessor bp : getBeanPostProcessorCache().instantiationAware) {
+				// forcus 这里是注解驱动依赖注入的关键步骤
+				// AutowiredAnnotationBeanPostProcessor: 处理@Autowired、@Value注解
 				PropertyValues pvsToUse = bp.postProcessProperties(pvs, bw.getWrappedInstance(), beanName);
 				if (pvsToUse == null) {
 					if (filteredPds == null) {
@@ -1881,15 +1993,19 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 			}, getAccessControlContext());
 		}
 		else {
+			// forcus 调用Aware接口方法
 			invokeAwareMethods(beanName, bean);
 		}
 
 		Object wrappedBean = bean;
+		// forcus 初始化前的后置处理器扩展 (包括@PostConstruct)
+		// 在这里默认的这些BPP,并没有做什么扩展，在这里做的事情为：7个Aware接口的注入 & @PostConstruct方法的执行
 		if (mbd == null || !mbd.isSynthetic()) {
 			wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName);
 		}
 
 		try {
+			// forcus 初始化方法 (InitializingBean.afterPropertiesSet + init-method)
 			invokeInitMethods(beanName, wrappedBean, mbd);
 		}
 		catch (Throwable ex) {
@@ -1897,6 +2013,16 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 					(mbd != null ? mbd.getResourceDescription() : null),
 					beanName, "Invocation of init method failed", ex);
 		}
+		// forcus 初始化后的后置处理器扩展 (AOP代理通常在这里发生) 后续在讲解事务的时候这里会在提到
+		/*
+			- ApplicationContextAwareProcessor: do nothing
+			- ImportAwareBeanPostProcessor: do nothing
+			- BeanPostProcessorChecker: do nothing
+			- CommonAnnotationBeanPostProcessor: do nothing
+			- AutowiredAnnotationBeanPostProcessor: do nothing
+			- ApplicationListenerDetector: 注册事件监听器 forcus
+
+		*/
 		if (mbd == null || !mbd.isSynthetic()) {
 			wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName);
 		}
@@ -1904,6 +2030,12 @@ public abstract class AbstractAutowireCapableBeanFactory extends AbstractBeanFac
 		return wrappedBean;
 	}
 
+	/*
+		forcus 3个Aware接口的回调
+			- BeanNameAware.setBeanName(beanName) ：对象可以获得自己在容器中的名字
+			- BeanClassLoaderAware.setBeanClassLoader(bcl) ：对象可以获得加载自己的类加载器
+			- BeanFactoryAware.setBeanFactory(this) ： 对象可以获得工厂
+	 */
 	private void invokeAwareMethods(String beanName, Object bean) {
 		if (bean instanceof Aware) {
 			if (bean instanceof BeanNameAware) {
