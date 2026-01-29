@@ -71,7 +71,7 @@ class ApplicationListenerDetector implements DestructionAwareBeanPostProcessor, 
 
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) {
-		// forcus 判断当前bean是否实现了ApplicationListener接口
+		// forcus 判断当前bean是否实现了 ApplicationListener 接口
 		if (bean instanceof ApplicationListener) {
 			// potentially not detected as a listener by getBeanNamesForType retrieval
 			Boolean flag = this.singletonNames.get(beanName);

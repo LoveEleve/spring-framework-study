@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
-    <diagram name="Spring容器初始化时的相关对象" id="main">
-        <mxGraphModel dx="2854" dy="710" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="2400" math="0" shadow="0">
+    <diagram name="容器初始化构造" id="main">
+        <mxGraphModel dx="5240" dy="2323" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1800" pageHeight="2400" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -409,8 +409,8 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="k0rt2fnDjS-uGBBH68zq" name="第 2 页">
-        <mxGraphModel dx="1054" dy="1879" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <diagram id="k0rt2fnDjS-uGBBH68zq" name="refresh相关">
+        <mxGraphModel dx="4128" dy="3957" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -891,8 +891,8 @@
             </root>
         </mxGraphModel>
     </diagram>
-    <diagram id="zoNRV5V8uqogMo2jazjZ" name="第 3 页">
-        <mxGraphModel dx="1054" dy="1879" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+    <diagram id="zoNRV5V8uqogMo2jazjZ" name="配置类解析逻辑">
+        <mxGraphModel dx="2064" dy="2563" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -1388,6 +1388,736 @@
                 <mxCell id="pmoIR6_AIWQnp-MZ1eYm-153" value="添加到alreadyParsed集合中" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;strokeColor=none;dashed=1;dashPattern=12 12;" parent="1" vertex="1">
                     <mxGeometry x="990" y="1230" width="170" height="26.25" as="geometry"/>
                 </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="ur5Tv24Vh7MoKv5UWsOD" name="refresh整体流程">
+        <mxGraphModel dx="1032" dy="697" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-1" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;refresh()整体流程&amp;nbsp;&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#f8cecc;strokeColor=#b85450;align=center;" vertex="1" parent="1">
+                    <mxGeometry x="140" y="130" width="250" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-3" target="qwF4ipwHSr2qHSMiAl2U-9">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-3" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;prepareRefresh()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="260" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-5" target="qwF4ipwHSr2qHSMiAl2U-3">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-5" value="AbstractApplicationContext # refresh()" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;" vertex="1" parent="1">
+                    <mxGeometry x="115" y="190" width="300" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-6" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="230" width="20" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-7" value="&#x9;&#x9;&#x9;     1.initPropertySources();在Spring中为空,但是在Web中存在扩展(后续再讲解springboot源码的时候会介绍)&#xa;&#x9;&#x9;&#x9;     2.初始化了两个集合&#xa;&#x9;&#x9;&#x9;      2.1 earlyApplicationListeners&#xa;&#x9;&#x9;&#x9;      2.2 earlyApplicationEvents ： 尤其是要关注这个集合，用来在事件广播器创建之前，保存提前发布的事件" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;" vertex="1" parent="1">
+                    <mxGeometry x="480" y="255" width="750" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-9" target="qwF4ipwHSr2qHSMiAl2U-13">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-9" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;prepareBeanFactory(beanFactory)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="460" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-10" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="430" width="20" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-11" value="1. 添加BPP对象到 beanPostProcessors 集合中&#xa;      - ApplicationContextAwareProcessor&#xa;      - ApplicationListenerDetector&#xa;2. 忽略某些接口&#xa;3. 注册环境Bean对象到一级缓存中" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="440" width="590" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-13" target="qwF4ipwHSr2qHSMiAl2U-17">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-13" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;postProcessBeanFactory(beanFactory)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="630" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-14" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="600" width="20" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-15" value="模版方法设计模式,为什么要在这里设置一个扩展点呢？&#xa;   目的是为了让子类可以在 &quot;标准初始化之后、BFPP执行之前&quot;定制 BeanFactory,这里将beanFactory作为参数传入&#xa;    - AbstractApplicationContext：为空实现&#xa;    - AbstractRefreshableWebApplicationContext：forcus 在springboot中会使用到" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="620" width="730" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-17" target="qwF4ipwHSr2qHSMiAl2U-23">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-17" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;invokeBeanFactoryPostProcessors(beanFactory)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e51400;strokeColor=#B20000;fontColor=#ffffff;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="840" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-18" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="770" width="20" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-19" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-20" target="qwF4ipwHSr2qHSMiAl2U-21">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-20" value="核心方法，处理两类核心的后置处理器 -- 是真的核心方法 BDRPP &amp; BFPP&#xa; == 并且是先执行 BDRPP 的扩展方法，再执行 BFPP的扩展方法&#xa;  - BDRPP : BeanDefinitionRegistryPostProcessor : 可以注册新的BeanDefinition&#xa;  - BFPP : BeanFactoryPostProcessor: 只能修改已有的BeanDefinition&#xa;&#xa;&#xa;Spring在启动的时候默认会注册5个后置处理器,但是只有2个会在这里起作用&#xa; - ConfigurationClassPostProcessor&#xa;  - postProcessBeanDefinitionRegistry()：解析配置类,在这一步会将所有的组件都变成beanDef,存放到容器中,但是注意并没有主动生成Bean实例&#xa;  - postProcessBeanFactory()：对Full类型的配置类,进行cglib代理&#xa; - EventListenerMethodProcessor&#xa;  - postProcessBeanFactory() ：收集所有 EventListenerFactory，排序并且保存&#xa;    - 默认只有DefaultEventListenerFactory,在开启事务的情况下还会有 ransactionalEventListenerFactory(不过暂时不需要关心)&#xa;  - afterSingletonsInstantiated() ：将 @EventListener 方法转换为ApplicationListener Bean，并且 注册到Spring的事件发布机制中&#xa;    - forcus 真正处理@EventListener注解的方法 (因为该BFPP还实现了SmartInitializingSingleton接口) -- 后续再深入了解&#xa; - 可能有用户自定义的BDRPP/BFPP" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="740" width="870" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-21" value="&#xa;在这里有个核心操作,那就是 ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry()方法&#xa;在这个方法中会解析项目中的所有组件类,并且形成beanDef存放到容器中&#xa;但是需要注意的是,此时并没有实例化bean对象&#xa;该方法的整体流程可以参考 - 配置类解析逻辑.drawio" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;strokeColor=#FF3333;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1000" y="990" width="730" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-22" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-23" target="qwF4ipwHSr2qHSMiAl2U-27">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-23" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;registerBeanPostProcessors(beanFactory)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1370" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-24" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="1140" width="20" height="520" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-25" value="注册所有BeanPostProcessor - 这里的注册指的getBean()创建BPP类型的实例,并且添加到beanPostProcessors集合中&#xa;    - 注意,这里并没有执行任何一个BPP实例对象的回调方法哦~&#xa;    &#xa;默认执行到这里的时候,有6个BPP对象&#xa;  - ApplicationContextAwareProcessor&#xa;    - 作用:处理6种Aware接口的回调&#xa;    - 触发时机：postProcessBeforeInitialization&#xa;    - 注册位置：prepareBeanFactory() 中直接添加&#xa;  - ConfigurationClassPostProcessor$ImportAwareBeanPostProcessor&#xa;    - 作用：&#xa;      1. 为CGLIB增强的配置类注入BeanFactory&#xa;      2. 处理ImportAware接口回调&#xa;    - 触发时机: postProcessProperties 和 postProcessBeforeInitialization&#xa;    - 注册位置：ConfigurationClassPostProcessor.postProcessBeanDefinitionRegistry() 中添加&#xa;  - PostProcessorRegistrationDelegate$BeanPostProcessorChecker&#xa;    - 作用：检测bean是否在所有BeanPostProcessor注册完成前被创建&#xa;    - 触发时机：postProcessAfterInitialization&#xa;    - 影响：如果检测到，打印警告日志（该bean可能无法被所有BPP处理，如无法被AOP代理）&#xa;    - 注册位置：registerBeanPostProcessors() 中添加&#xa;  - CommonAnnotationBeanPostProcessor&#xa;    - 作用：处理JSR-250标准注解&#xa;    - 处理的注解：@Resource、@PostConstruct、@PreDestroy、@EJB、@WebServiceRef&#xa;    - 注册位置: 通过BeanDefinition在 AnnotationConfigUtils 中注册&#xa;  - AutowiredAnnotationBeanPostProcessor&#xa;    - 作用:处理自动装配注解&#xa;    - 处理的注解：@Autowired、@Value、@Inject（JSR-330）&#xa;    - 注册位置：通过BeanDefinition在 AnnotationConfigUtils 中注册&#xa;    - 功能细节：字段注入 / 构造器注入 / 方法注入 / 值注入(@Value)&#xa;  - ApplicationListenerDetector&#xa;    - 作用：检测并注册实现ApplicationListener接口的bean&#xa;    - 触发时机：&#xa;      postProcessAfterInitialization（注册）&#xa;      postProcessBeforeDestruction（移除）&#xa;    - 注册位置：registerBeanPostProcessors() 最后添加" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="1145" width="870" height="510" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-26" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-27" target="qwF4ipwHSr2qHSMiAl2U-29">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-27" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;initMessageSource()&lt;/font&gt;&lt;div&gt;&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;# 国际化相关,暂时不关心&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1610" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-28" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-29" target="qwF4ipwHSr2qHSMiAl2U-33">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-29" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;initApplicationEventMulticaster()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1820" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-30" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="1805" width="20" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-31" value="初始化 事件广播器，它是Spring事件机制的核心组件&#xa;spring内部默认的广播器对象是：SimpleApplicationEventMulticaster" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="1825" width="530" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-33" target="qwF4ipwHSr2qHSMiAl2U-37">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-33" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;onRefresh()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="1970" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-34" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="1955" width="20" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-35" value="模版方法,空实现,在springboot中会使用到(在这里启动内嵌的tomcat服务器)" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="520" y="1980" width="460" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-36" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-37" target="qwF4ipwHSr2qHSMiAl2U-41">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-37" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;registerListeners()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="2180" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-38" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="2147.5" width="20" height="125" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-39" value="将应用程序中的事件监听器注册到事件广播器中，并发布在广播器就绪之前暂存的早期事件。&#xa;  需要注意的是,在上面的 initApplicationEventMulticaster()方法中才刚刚 创建了 事件广播器(默认为 SimpleApplicationEventMulticaster)&#xa;  ==&#xa;  spring的事件机制简单介绍：&#xa;   - spring事件机制由三个核心组件组成&#xa;    - ApplicationEvent:事件对象 -&gt; 发布对象&#xa;    - ApplicationEventMulticaster:事件广播器 -&gt; 广播事件(registerListeners()就是在这里完成监听器的注册)&#xa;    - ApplicationListener:事件监听器" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="2137.5" width="740" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-40" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-41" target="qwF4ipwHSr2qHSMiAl2U-46">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-41" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;finishBeanFactoryInitialization(beanFactory)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="2430" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-42" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="2397.5" width="20" height="125" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-43" value="将应用程序中的事件监听器注册到事件广播器中，并发布在广播器就绪之前暂存的早期事件。&#xa;  需要注意的是,在上面的 initApplicationEventMulticaster()方法中才刚刚 创建了 事件广播器(默认为 SimpleApplicationEventMulticaster)&#xa;  ==&#xa;  spring的事件机制简单介绍：&#xa;   - spring事件机制由三个核心组件组成&#xa;    - ApplicationEvent:事件对象 -&gt; 发布对象&#xa;    - ApplicationEventMulticaster:事件广播器 -&gt; 广播事件(registerListeners()就是在这里完成监听器的注册)&#xa;    - ApplicationListener:事件监听器" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="2137.5" width="740" height="145" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-44" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="qwF4ipwHSr2qHSMiAl2U-45" target="qwF4ipwHSr2qHSMiAl2U-49">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-45" value="spring初始化中最重要,同时也是最耗时的一个步骤&#xa;===&#xa;  - 绝大多数的用户自定义的Bean,都是在这里被实例化的&#xa;  - 依赖注入在这里完成&#xa;  - @PostConstruct &amp; InitializingBean 等初始化回调在这里完成" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="2413.75" width="440" height="92.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-46" value="&lt;font face=&quot;Menlo, Monaco, Courier New, monospace&quot;&gt;finishBeanFactoryInitialization(beanFactory)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+                    <mxGeometry x="80" y="2640" width="370" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-47" value="spring 容器 refresh() 的最后一步，标志着容器刷新完成&#xa;发布容器刷新完成事件" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="500" y="2647.5" width="380" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-48" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;" vertex="1" parent="1">
+                    <mxGeometry x="460" y="2623.75" width="20" height="92.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="qwF4ipwHSr2qHSMiAl2U-49" value="参考Bean创建逻辑-N" style="text;whiteSpace=wrap;fontFamily=Menlo, Monaco, Courier New, monospace;strokeColor=#FF3333;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="750" y="2540" width="130" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="4TIIe11GuhQNQjcFRIEM" name="Bean创建逻辑-1">
+        <mxGraphModel dx="3440" dy="2323" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-50" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.337;entryY=0.001;entryDx=0;entryDy=0;entryPerimeter=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-126" target="1jjiBpRoDKVTdoKWtJoe-131">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-51" value="&lt;font&gt;其他作用域的处理&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="2240" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-52" value="&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fillWeight=4;hachureGap=8;hachureAngle=45;fillStyle=hachure;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;" vertex="1" parent="1">
+                    <mxGeometry x="751" y="920" width="1730" height="4380" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-53" value="&lt;font&gt;创建单例Bean的核心逻辑&lt;/font&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#f8cecc;strokeColor=#b85450;align=left;fontFamily=Comic Sans MS;" vertex="1" parent="1">
+                    <mxGeometry x="446.5" y="120" width="220" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-54" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-55" target="1jjiBpRoDKVTdoKWtJoe-57">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-55" value="AbstractApplicationContext # refresh() # finishBeanFactoryInitialization(beanFactory)&#xa;&#xa;这里需要额外说明的一点是不是只有在这里才会实例化Bean对象,在前面实例化某些后置处理器的时候就会进行bean的创建了" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;" vertex="1" parent="1">
+                    <mxGeometry x="230" y="190" width="670" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-56" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-57" target="1jjiBpRoDKVTdoKWtJoe-61">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-57" value="&lt;font&gt;初始化 类型转换服务&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="330" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-58" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=#1ba1e2;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="310" width="20" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-59" value="ConversionService 是 Spring 3.0 引入的统一类型转换 API，用于替代传统的 PropertyEditor&#xa;  ===&#xa;  但是spring默认没有注册 ConversionService，所以这段代码默认是不执行的，也即依旧使用的是 PropertyEditor(这个也暂时不关心了)&#xa;  但是在springboot是会自动注册 ApplicationConversionService 的" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;textShadow=0;" vertex="1" parent="1">
+                    <mxGeometry x="810" y="320" width="800" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-60" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-61" target="1jjiBpRoDKVTdoKWtJoe-65">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-61" value="&lt;font&gt;注册默认的嵌入值解析器（处理 @Value 占位符）&lt;/font&gt;&lt;div&gt;&lt;font&gt;提前初始化 LoadTimeWeaverAware Bean（AOP 织入）&lt;/font&gt;&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="490" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-62" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=#1ba1e2;size=0.5;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="465" width="20" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-63" value="暂时不关注这个占位符解析器 &amp; AOP织入逻辑" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;textShadow=0;" vertex="1" parent="1">
+                    <mxGeometry x="820" y="497.5" width="270" height="32.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-64" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-65" target="1jjiBpRoDKVTdoKWtJoe-68">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-65" value="&lt;font&gt;beanFactory.freezeConfiguration();&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="660" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-66" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=#1ba1e2;size=0.5;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="635" width="20" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-67" value="主要做了两件事情:&#xa; 1.this.configurationFrozen = true # 设置冻结标识&#xa; 2.this.frozenBeanDefinitionNames = StringUtils.toStringArray(this.beanDefinitionNames); # 缓存所有的beanDefinition&#xa;===&#xa;为什么要进行缓存呢？--&gt; 主要是为了性能优化&#xa;  1. 启用类型缓存：getBeanNamesForType()&#xa;  2. 元数据缓存资格&#xa;  3. preInstantiateSingletons 使用快照" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="810" y="610" width="880" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-68" value="&lt;font&gt;beanFactory.preInstantiateSingletons();&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=solid;curveFitting=1;opacity=70;strokeColor=#B20000;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=#ffffff;fillColor=#e51400;" vertex="1" parent="1">
+                    <mxGeometry x="360" y="830" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-69" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=#1ba1e2;size=0.5;" vertex="1" parent="1">
+                    <mxGeometry x="780" y="825" width="20" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-70" value="实例化所有非懒加载的单例 Bean" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="800" y="837.5" width="210" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-71" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.01;entryY=0.001;entryDx=0;entryDy=0;entryPerimeter=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-68" target="1jjiBpRoDKVTdoKWtJoe-52">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-72" value="DefaultListableBeanFactory.preInstantiateSingletons()" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1320" y="875" width="420" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-73" value="方法简介: 这个方法的核心就是两个for循环&#xa;    1. 第一个for循环：依次处理容器中的每一个beanName，进行实例化&#xa;    2. 第二个for循环：依次处理容器中的每一个beanName, 对是 SmartInitializingSingleton 类型的bean再进行额外的处理&#xa;" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=#FF3333;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+                    <mxGeometry x="760" y="940" width="770" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-74" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-75" target="1jjiBpRoDKVTdoKWtJoe-77">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-75" value="第一个for循环：for (String beanName : beanNames)" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+                    <mxGeometry x="1075" y="1040" width="350" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-76" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-77" target="1jjiBpRoDKVTdoKWtJoe-80">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-77" value="&lt;font&gt;在这里能进行实例化的条件: 非抽象 / 单例 / 非懒加载&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="1120" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-78" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-80" target="1jjiBpRoDKVTdoKWtJoe-82">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-79" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-80" target="1jjiBpRoDKVTdoKWtJoe-85">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-80" value="&lt;font&gt;是否是工厂Bean&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;rounded=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#b85450;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=#f8cecc;" vertex="1" parent="1">
+                    <mxGeometry x="1145.5" y="1240" width="209" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-81" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-82" target="1jjiBpRoDKVTdoKWtJoe-100">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-82" value="&lt;font&gt;getBean(beanName)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="1400" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-83" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;&quot;&gt;NO&lt;/span&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1260" y="1340" width="50" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-84" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-85" target="1jjiBpRoDKVTdoKWtJoe-82">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-85" value="&lt;font&gt;getBean(&amp;amp;beanName)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1460" y="1260" width="360" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-86" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-87" target="1jjiBpRoDKVTdoKWtJoe-88">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1410" y="1190"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-87" value="&lt;span style=&quot;color: rgb(0, 0, 0); font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; background-color: rgb(236, 236, 236); text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial; float: none; display: inline !important;&quot;&gt;YES&lt;/span&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1390" y="1250" width="50" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-88" value="&lt;font&gt;如何判断一个bean是不是FactoryBean呢？&lt;/font&gt;&lt;div&gt;&lt;font&gt;在配置类解析的时候,如果一个bean是工厂bean,那么在benaDef会有一个属性isFactoryBean来标记的(设置为true)&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1540" y="1169" width="700" height="41" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-89" value="&lt;font&gt;注意这里获取的是工厂bean,&lt;/font&gt;&lt;div&gt;&lt;font&gt;而不是产品bean&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1390" y="1340" width="160" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-91" target="1jjiBpRoDKVTdoKWtJoe-94">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-91" value="&lt;font&gt;如果工厂bean的类型是 SmartFactoryBean 类型的(这个类型是FactoryBean的子类，用于控制产品bean的实例化时机)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1670" y="1350" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-92" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.139;entryY=-0.05;entryDx=0;entryDy=0;entryPerimeter=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-85" target="1jjiBpRoDKVTdoKWtJoe-91">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-93" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-94" target="1jjiBpRoDKVTdoKWtJoe-82">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1550" y="1460"/>
+                            <mxPoint x="1550" y="1420"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-94" value="&lt;font&gt;getBean(beanName)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1705" y="1440" width="360" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-95" value="&lt;font&gt;注意这里获取的就是产品Bean实例&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1480" y="1470" width="220" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-96" value="&lt;font&gt;工厂bean是&amp;nbsp;&lt;/font&gt;&lt;span style=&quot;text-align: center;&quot;&gt;SmartFactoryBean 类型的&lt;/span&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1900" y="1405" width="250" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-97" value="" style="shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=#1ba1e2;" vertex="1" parent="1">
+                    <mxGeometry x="980" y="1060" width="20" height="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-98" value="" style="curved=1;endArrow=classic;html=1;rounded=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="930" y="1260" as="sourcePoint"/>
+                        <mxPoint x="930" y="1250" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="980" y="1260"/>
+                            <mxPoint x="970" y="1230"/>
+                            <mxPoint x="940" y="1210"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-99" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-100" target="1jjiBpRoDKVTdoKWtJoe-107">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-100" value="&lt;font&gt;doGetBean()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="1520" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-101" value="&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fillWeight=4;hachureGap=8;hachureAngle=45;fillStyle=hachure;opacity=70;strokeColor=#FF9999;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;" vertex="1" parent="1">
+                    <mxGeometry x="810" y="1754" width="1500" height="3446" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-102" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-104" target="1jjiBpRoDKVTdoKWtJoe-105">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-103" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-104" target="1jjiBpRoDKVTdoKWtJoe-111">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-104" value="&lt;font&gt;String beanName = transformedBeanName(name)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="1662.5" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-105" value="&lt;font&gt;beanName规整化,注意这里是返回了一个新的beanName，而不是直接修改传入的name，&lt;/font&gt;&lt;div&gt;&lt;font&gt;在这里是：&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;name = &amp;amp;xxx&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;beanName = xxx&lt;br&gt;&lt;/font&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="1650" width="550" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-106" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.293;entryY=0.004;entryDx=0;entryDy=0;entryPerimeter=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-100" target="1jjiBpRoDKVTdoKWtJoe-101">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-107" value="&lt;div&gt;&lt;div&gt;&lt;font&gt;在这里需要注意的是：这里面会出现循环依赖相关的代码处理,为了避免图形太过庞大，这里展示不考虑循环依赖的相关代码逻辑，主要关注单例Bean实例化的生命周期&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1525" y="1515" width="540" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-108" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-111" target="1jjiBpRoDKVTdoKWtJoe-112">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-109" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-111" target="1jjiBpRoDKVTdoKWtJoe-113">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-110" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-111" target="1jjiBpRoDKVTdoKWtJoe-116">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-111" value="&lt;font&gt;Object sharedInstance = getSingleton(beanName)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="1780" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-112" value="&lt;div&gt;&lt;div&gt;&lt;font&gt;需要注意的是,这里的返回值可能有3种情况：&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;1. null：重来没有创建过,这也是当前关系的情况&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;2. 从二级缓存中获取到的循环依赖的早期引用(这个单独使用一个图来讲解)&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt; &lt;/span&gt;&amp;nbsp;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;3. 完整对象: 这种情况通常是spring“稳定后”，没什么好说的&lt;br&gt;&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1520" y="1767.5" width="550" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-113" value="&lt;div&gt;&lt;div&gt;&lt;font&gt;在这里目前只关注第一种情况(也就是为null的情况)，对于循环依赖的情况，则单独讲解&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1520" y="1850" width="550" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-114" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-116" target="1jjiBpRoDKVTdoKWtJoe-117">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-115" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-116" target="1jjiBpRoDKVTdoKWtJoe-121">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-116" value="&lt;font&gt;父容器场景&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="1930" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-117" value="&lt;div&gt;&lt;div&gt;&lt;font&gt;这种场景也不关心，用的比较少，再springboot中可能会涉及到&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1520" y="1935" width="380" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-118" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-121" target="1jjiBpRoDKVTdoKWtJoe-122">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-119" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-121" target="1jjiBpRoDKVTdoKWtJoe-82">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="950" y="2070"/>
+                            <mxPoint x="950" y="1420"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-120" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-121" target="1jjiBpRoDKVTdoKWtJoe-126">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-121" value="&lt;font&gt;处理@DependsOn注解&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="2050" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-122" value="&lt;font&gt;处理当前bean显示依赖的bean，如果有，则先调用getBean()来显式的实例化依赖的bean对象&lt;/font&gt;&lt;div&gt;&lt;font&gt;注意,对于@DependsOn造成的循环依赖,Spring默认是不会解决的，默认处理方式为抛出异常&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1520" y="2047.5" width="570" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-123" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-126" target="1jjiBpRoDKVTdoKWtJoe-127">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-124" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-126" target="1jjiBpRoDKVTdoKWtJoe-51">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-125" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-126" target="1jjiBpRoDKVTdoKWtJoe-82">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="880" y="2170"/>
+                            <mxPoint x="880" y="1420"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-126" value="&lt;font&gt;sharedInstance = getSingleton(beanName,factoryMethod)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1045" y="2150" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-127" value="&lt;font&gt;真正的创建单例bean了,这里的factoryMethod实际上是&amp;nbsp;createBean(),后续会调用这个方法来真正的创建bean实例&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="2148.75" width="560" height="42.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-128" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-51" target="1jjiBpRoDKVTdoKWtJoe-129">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-129" value="&lt;font&gt;对于原型 / session / ... / 自定义的作用域的相关处理，暂时不关心&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="2244.38" width="432" height="31.25" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-130" value="&lt;font&gt;return&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=#FF3333;" vertex="1" parent="1">
+                    <mxGeometry x="930" y="2130" width="50" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-131" value="&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fillWeight=4;hachureGap=8;hachureAngle=45;fillStyle=hachure;opacity=70;strokeColor=#FFA4C1;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;" vertex="1" parent="1">
+                    <mxGeometry x="890" y="2330" width="1370" height="2790" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-132" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-134" target="1jjiBpRoDKVTdoKWtJoe-135">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-133" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-134" target="1jjiBpRoDKVTdoKWtJoe-137">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-134" value="&lt;font&gt;beforeSingletonCreation(beanName);&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="2370" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-135" value="&lt;font&gt;关键点是将当前beanName添加到&amp;nbsp;singletonsCurrentlyInCreation 集合中，&lt;/font&gt;&lt;div&gt;&lt;font&gt;在低版本的spring中,比如5.1.x,在这里只会看到该集合，但是在5.3.x版本中还多了一个集合：&lt;/font&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;font&gt;inCreationCheckExclusions&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;font&gt;这个集合的作用是为了spring的灵活性,用于排除特殊Bean的循环依赖检查&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;- 当某个beanName位于这个集合中时，将不会进行循环依赖的检查,但是暂时没看到在哪里使用到了这个特性&lt;br&gt;&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1520" y="2350" width="730" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-136" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-137" target="1jjiBpRoDKVTdoKWtJoe-140">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-137" value="&lt;font&gt;singletonObject = singletonFactory.getObject()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#b85450;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=#f8cecc;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="2510" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-138" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-140" target="1jjiBpRoDKVTdoKWtJoe-141">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-139" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-140" target="1jjiBpRoDKVTdoKWtJoe-143">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-140" value="&lt;font&gt;afterSingletonCreation(beanName)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="2620" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-141" value="&lt;div&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;&lt;font&gt;将当前创建的beanName从&amp;nbsp;&lt;/font&gt;&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;singletonsCurrentlyInCreation 集合中移除，因为bean实例已经创建完毕了&lt;/span&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1530" y="2625" width="632" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-142" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-143" target="1jjiBpRoDKVTdoKWtJoe-144">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-143" value="&lt;font&gt;addSingleton(beanName, singletonObject)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="2740" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-144" value="&lt;font style=&quot;forced-color-adjust: none; color: rgb(0, 0, 0); font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;添加到单例池中：&lt;/font&gt;&lt;span style=&quot;forced-color-adjust: none; color: rgb(0, 0, 0); font-size: 12px; font-style: normal; font-variant-ligatures: normal; font-variant-caps: normal; font-weight: 400; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: normal; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;&quot;&gt;&lt;font style=&quot;forced-color-adjust: none;&quot;&gt;singletonObjects(也就是通常所说的一级缓存)&lt;/font&gt;&lt;/span&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;labelBackgroundColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="2740" width="400" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-145" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.75;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=8 8;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-146" target="1jjiBpRoDKVTdoKWtJoe-126">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1025" y="2860"/>
+                            <mxPoint x="1025" y="2180"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-146" value="&lt;font&gt;retrun&amp;nbsp;&lt;/font&gt;&lt;span style=&quot;&quot;&gt;singletonObject&lt;/span&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="2840" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-147" value="&lt;font&gt;return&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;dashed=1;dashPattern=12 12;strokeColor=#FF3333;" vertex="1" parent="1">
+                    <mxGeometry x="970" y="2200" width="50" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-148" value="&amp;nbsp;" style="rounded=0;whiteSpace=wrap;html=1;fillWeight=4;hachureGap=8;hachureAngle=45;fillStyle=hachure;opacity=70;strokeColor=#00CC00;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;fillColor=none;sketch=1;curveFitting=1;jiggle=2;glass=0;shadow=0;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1050" y="2920" width="1100" height="2120" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-149" value="AbstractAutowireCapableBeanFactory.createBean()" style="text;whiteSpace=wrap;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" vertex="1" parent="1">
+                    <mxGeometry x="1490" y="2890" width="420" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-150" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-152" target="1jjiBpRoDKVTdoKWtJoe-153">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-151" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-152" target="1jjiBpRoDKVTdoKWtJoe-157">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-152" value="&lt;font&gt;mbdToUse.prepareMethodOverrides()&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="2960" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-153" value="&lt;font&gt;处理@Lookup相关的注解，这个注解几乎没怎么看见过，暂时不关心&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="2965" width="400" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-154" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-157" target="1jjiBpRoDKVTdoKWtJoe-158">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-155" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-157" target="1jjiBpRoDKVTdoKWtJoe-161">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-156" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-157">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="620" y="3070" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-157" value="&lt;font&gt;Object bean = resolveBeforeInstantiation(beanName, mbdToUse)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="3050" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-158" value="&lt;div&gt;&lt;font&gt;专门针对特殊的AOP,如果在这里就返回了代理bean对象，那么会直接返回&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&amp;nbsp; - 跳过正常的Bean创建流程（不会调用构造函数、不会进行属性填充等）&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&amp;nbsp; - 直接调用 postProcessAfterInitialization()，给其他后置处理器一个处理代理对象的机会&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&amp;nbsp; - 立即返回这个对象作为Bean实例&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;在spring5.3.x,在没有开启AOP的情况下,这里默认没有任何的扩展&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="3021.25" width="602" height="97.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-159" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-161" target="1jjiBpRoDKVTdoKWtJoe-162">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-160" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-161" target="1jjiBpRoDKVTdoKWtJoe-165">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-161" value="&lt;font&gt;Object beanInstance = doCreateBean(beanName, mbdToUse, args);&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1060" y="3150" width="410" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-162" value="&lt;font&gt;真正的创建逻辑&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1518" y="3155" width="102" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-163" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-165" target="1jjiBpRoDKVTdoKWtJoe-166">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-164" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-165" target="1jjiBpRoDKVTdoKWtJoe-170">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-165" value="&lt;font&gt;instanceWrapper = createBeanInstance(beanName, mbd, args)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#b85450;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=#f8cecc;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="3230" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-166" value="&lt;font&gt;创建实例bean，这个方法的目的很简单，就是创建对象，但是内部的实现却很复杂，对于细节暂时可以不用关注(因为即使看了源码也记不住)，但是对于这个方法内创建bean的方式可以简单了解一下：&lt;/font&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;1. Supplier方法：优先级最高(这个可以简单了解一下)&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;2.&amp;nbsp; @Bean注解标注的方法&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;3. 缓存的构造器/工厂方法(性能优化)：这个主要是用于原型bean，多次创建时可以复用已经解析过的构造方法，暂时不关心&lt;/font&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;4. BPP推断的构造器,也即构造器注入(@Autowired标注的构造器，只有一个带参构造器，这里关于构造器的推断算法，暂时不关心)，但是需要注意的一点是，这里可是会造成循环依赖的(并且是不可解决的)&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;5. 首选构造器&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;6. 无参构造器&lt;br&gt;&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1860" y="3195" width="1190" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-167" value="这里的核心就是创建对象，本质上就是通过反射来创建，但是需要注意的是，在这里只是创建了对象而已，bean的生命周期才刚刚开始，顺便提一下，这里构造器产生的循环依赖是不可解决的，spring会抛出异常的" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1860" y="3320" width="490" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-168" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-170" target="1jjiBpRoDKVTdoKWtJoe-171">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-169" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-170" target="1jjiBpRoDKVTdoKWtJoe-175">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-170" value="&lt;font&gt;applyMergedBeanDefinitionPostProcessors(mbd, beanType, beanName)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="3510" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-171" value="&lt;div&gt;在spring初始化时,默认会有三个MergedBeanDefinitionPostProcessor类型的BPP，分别为:&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&lt;/span&gt;- CommonAnnotationBeanPostProcessor&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&#x9;&lt;/span&gt;- 处理@Resource / @PostConstruct / @PreDestroy 等JSR-250注解 (暂时可以不用关系)&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&lt;/span&gt;- AutowiredAnnotationBeanPostProcessor forcus&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&#x9;&lt;/span&gt;- 处理自动装配注解, @Autowired / @Value / @Inject 等注解&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&#x9;&lt;/span&gt;- 核心作用: 扫描并缓存所有需要自动装配的字段和方法信息&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&lt;/span&gt;- ApplicationListenerDetector forcus&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&#x9;&lt;/span&gt;- 检查Bean类型是否实现了ApplicationListener接口，记录相关信息，会在后续Bean初始化完成后的postProcessAfterInitialization方法中使用，&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: normal;&quot;&gt;&lt;span style=&quot;white-space:pre&quot;&gt;&#x9;&#x9;&#x9;&#x9;&lt;/span&gt;- 决定是否将监听器注册到ApplicationContext中&lt;/span&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="3455" width="900" height="150" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-172" value="注意,在这里针对 AutowiredAnnotationBeanPostProcessor 要额外说明一下，&lt;div&gt;在这里的处理只是收集信息，并没有真正的进行属性注入&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="3620" width="490" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-173" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-175" target="1jjiBpRoDKVTdoKWtJoe-176">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-174" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-175" target="1jjiBpRoDKVTdoKWtJoe-180">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-175" value="boolean earlySingletonExposure (绝大多数场景下都为true)" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="3750" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-176" value="&lt;div&gt;boolean earlySingletonExposure = (mbd.isSingleton() &amp;amp;&amp;amp; this.allowCircularReferences &amp;amp;&amp;amp;&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;isSingletonCurrentlyInCreation(beanName));&lt;/span&gt;&lt;/div&gt;&lt;div&gt;3个条件缺一不可：必须是单例(原型bean的循环依赖直接抛出异常) ， 允许循环依赖引用(默认为true) ，并且当前bean正在创建中(在上面已经加入到对应的集合中了)&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="3747.5" width="880" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-177" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.969;entryY=-0.001;entryDx=0;entryDy=0;entryPerimeter=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-135" target="1jjiBpRoDKVTdoKWtJoe-176">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="2723" y="2390"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-178" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-180" target="1jjiBpRoDKVTdoKWtJoe-182">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-179" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-180" target="1jjiBpRoDKVTdoKWtJoe-189">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-180" value="addSingletonFactory(beanName, () -&amp;gt; getEarlyBeanReference(beanName, mbd, bean))" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#b85450;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=#f8cecc;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="3890" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-181" value="&lt;span style=&quot;font-family: &amp;quot;Comic Sans MS&amp;quot;; text-align: left;&quot;&gt;singletonsCurrentlyInCreation&lt;/span&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;rounded=1;fillWeight=4;hachureGap=8;hachureAngle=45;fillStyle=solid;opacity=70;strokeColor=#d6b656;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fillColor=#fff2cc;rotation=0;shadow=0;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="1">
+                    <mxGeometry x="2205" y="2191.25" width="210" height="142.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-182" value="&lt;div&gt;将当前要创建的beanName + 对应的工厂方法(singletonFactory)添加到三级缓存中&amp;nbsp;singletonFactories&lt;/div&gt;&lt;div&gt;这里也是循环依赖相关的逻辑，正常情况这里beanName对应的工厂方法是不会被执行的，后续在单独讲解循环依赖的时候会再次提到&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="3887.5" width="880" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-183" value="&lt;span style=&quot;font-family: &amp;quot;Comic Sans MS&amp;quot;; text-align: left;&quot;&gt;singletonFactories&lt;/span&gt;" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;rounded=1;fillWeight=4;hachureGap=8;hachureAngle=45;fillStyle=solid;opacity=70;strokeColor=#d6b656;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fillColor=#fff2cc;rotation=0;shadow=0;sketch=1;curveFitting=1;jiggle=2;" vertex="1" parent="1">
+                    <mxGeometry x="2770" y="3820" width="210" height="142.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-184" value="beanName" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=solid;curveFitting=1;opacity=70;strokeColor=default;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fontColor=default;fillColor=#1ba1e2;" vertex="1" parent="1">
+                    <mxGeometry x="2230" y="2240" width="140" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-185" value="&lt;font face=&quot;Comic Sans MS&quot;&gt;beanName --&amp;gt; singletonFactory&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=solid;curveFitting=1;opacity=70;strokeColor=#82b366;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fillColor=#d5e8d4;" vertex="1" parent="1">
+                    <mxGeometry x="2770" y="3860" width="200" height="22" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-186" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-189" target="1jjiBpRoDKVTdoKWtJoe-190">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-187" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-189" target="1jjiBpRoDKVTdoKWtJoe-195">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-188" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-189" target="1jjiBpRoDKVTdoKWtJoe-210">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-189" value="populateBean(beanName, mbd, instanceWrapper)" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="4020" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-190" value="属性填充,这里是第二个会形成循坏依赖的地方(第一个是在上面的构造器注入的时候,上面的是无法解决的,spring默认选择直接抛出异常)&lt;div&gt;这里的属性填充通常包含3种类型：1. 通过@Autowired标注的字段的注入 2. @Autowired标注的setter()方法 3. @Value标注的字段&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="4017.5" width="720" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-191" value="关于依赖注入的细节同样也不需要关注,因为本质上就是通过反射来进行注入的，但是在这里额外的讲解一下循环依赖的种类&lt;div&gt;spring默认不会解决所有循环依赖,通常有以下几种情况的循环依赖：&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;spring能解决的：&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&amp;nbsp;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;1. @Autowired标注的字段注入和setter()方法注入&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;spring不能解决的：&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;2. 构造器注入的循环依赖：因为实例对象都没有，无法提前暴露引用到三级缓存中&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;解决办法：使用@Lazy注解&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;3. AOP代理导致的循环依赖(特殊场景)：当循环依赖中的Bean需要被AOP代理（如@Async、@Transactional），且早期引用与最终对象不一致时&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;这个后续会单独讲解&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;解决方法：使用@Lazy注解&lt;br&gt;&lt;div&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;4. @DependsOn形成的循环依赖&lt;br&gt;&lt;/div&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="4080" width="910" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-192" value="在这里也是暂时不关注，因为依赖注入本质就是反射, 后续在讲解循环依赖的时候会再次回到这里，但是同样也是不会讲解细节" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="4280" width="720" height="45" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-193" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-195" target="1jjiBpRoDKVTdoKWtJoe-196">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-194" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-195" target="1jjiBpRoDKVTdoKWtJoe-199">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-195" value="exposedObject = initializeBean(beanName, exposedObject, mbd)" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#b85450;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=#f8cecc;" vertex="1" parent="1">
+                    <mxGeometry x="1380" y="4370" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-196" value="在上面对bean执行的操作有：实例化，属性注入，下面就进入到bean的初始化阶段了" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1870" y="4368.75" width="460" height="42.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-197" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-199" target="1jjiBpRoDKVTdoKWtJoe-200">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-198" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-199" target="1jjiBpRoDKVTdoKWtJoe-204">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-199" value="invokeAwareMethods(beanName, bean)" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1730" y="4500" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-200" value="&lt;div&gt;&amp;nbsp;3个Aware接口的回调&lt;/div&gt;&lt;div&gt;&amp;nbsp; - BeanNameAware.setBeanName(beanName) ：对象可以获得自己在容器中的名字&lt;/div&gt;&lt;div&gt;&amp;nbsp; - BeanClassLoaderAware.setBeanClassLoader(bcl) ：对象可以获得加载自己的类加载器&lt;/div&gt;&lt;div&gt;&amp;nbsp; - BeanFactoryAware.setBeanFactory(this) ： 对象可以获得工厂&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="2220" y="4485" width="525" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-201" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-204" target="1jjiBpRoDKVTdoKWtJoe-205">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-202" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-204" target="1jjiBpRoDKVTdoKWtJoe-208">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-203" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-204" target="1jjiBpRoDKVTdoKWtJoe-214">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-204" value="wrappedBean = applyBeanPostProcessorsBeforeInitialization(wrappedBean, beanName)" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1730" y="4610" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-205" value="&lt;div&gt;初始化前的扩展&lt;/div&gt;在这里默认的这些BPP,并没有做什么扩展，在这里做的事情为：7个Aware接口的注入 &amp;amp; @PostConstruct方法的执行" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="2220" y="4611.25" width="630" height="37.5" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-206" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-208" target="1jjiBpRoDKVTdoKWtJoe-211">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-207" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-208" target="1jjiBpRoDKVTdoKWtJoe-212">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-208" value="invokeInitMethods(beanName, wrappedBean, mbd);" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1730" y="4720" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-209" value="&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot; face=&quot;Comic Sans MS&quot;&gt;bean实例化前的扩展：&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot; face=&quot;Comic Sans MS&quot;&gt;调用&lt;/font&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255)); font-family: &amp;quot;Comic Sans MS&amp;quot;;&quot;&gt;InstantiationAwareBeanPostProcessor.&lt;/span&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;postProcessBeforeInstantiation()&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;作用：&lt;/font&gt;&lt;span style=&quot;background-color: transparent; text-align: center;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;在 Bean 实例化之前执行，可以返回一个代理对象来替代正常的实例化流程&lt;/font&gt;&lt;/span&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;rounded=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#d6b656;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fillColor=#fff2cc;" vertex="1" parent="1">
+                    <mxGeometry x="170" y="3010" width="451.5" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-210" value="&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;bean实例化之后，属性填充之前的扩展：&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;InstantiationAwareBeanPostProcessor.postProcessAfterInstantiation()&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;特点为：bean实例已经创建，属性还未填充&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;返回值：&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;1. true：继续正常的属性填充流程&lt;br&gt;&lt;/font&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;2. 返回false,跳过后续的属性填充，直接进入到初始化阶段&lt;/font&gt;&lt;br&gt;&lt;/div&gt;&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;作用：自定义字段注入的理想时机&lt;/font&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;rounded=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#d6b656;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fillColor=#fff2cc;" vertex="1" parent="1">
+                    <mxGeometry x="130" y="3985" width="451.5" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-211" value="该方法负责在Bean属性填充完成后，按照顺序调用两种初始化回调&lt;div&gt;1.&amp;nbsp;先调用 InitializingBean.afterPropertiesSet()（如果实现了该接口）--&amp;gt; 通常使用的是这种初始化回调方式,也推荐使用这种&lt;/div&gt;&lt;div&gt;2.再调用自定义的 init-method（如果配置了）&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="2220" y="4710.63" width="670" height="58.75" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-212" value="wrappedBean = applyBeanPostProcessorsAfterInitialization(wrappedBean, beanName)" style="rounded=1;whiteSpace=wrap;html=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#56517e;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Comic Sans MS;fontSize=12;fillColor=none;" vertex="1" parent="1">
+                    <mxGeometry x="1730" y="4820" width="430" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-213" value="初始化后的后置处理器扩展 (AOP代理通常在这里发生) 后续在讲解事务的时候这里会在提到，在未开启任何其他特性的时候(比如AOP,事务(当然事务本身也是通过AOP来实现的))&lt;div&gt;&lt;div&gt;&amp;nbsp; - ApplicationContextAwareProcessor: do nothing&lt;/div&gt;&lt;div&gt;&amp;nbsp; - ImportAwareBeanPostProcessor: do nothing&lt;/div&gt;&lt;div&gt;&amp;nbsp; - BeanPostProcessorChecker: do nothing&lt;/div&gt;&lt;div&gt;&amp;nbsp; - CommonAnnotationBeanPostProcessor: do nothing&lt;/div&gt;&lt;div&gt;&amp;nbsp; - AutowiredAnnotationBeanPostProcessor: do nothing&lt;/div&gt;&lt;div&gt;&amp;nbsp; - ApplicationListenerDetector: 注册事件监听器&amp;nbsp;&lt;/div&gt;&lt;/div&gt;&lt;div&gt;在这里只有最后一个后置处理器在这里有对应的处理逻辑:那就是&amp;nbsp;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;ApplicationListenerDetector&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;&lt;span style=&quot;white-space: pre;&quot;&gt;&#x9;&lt;/span&gt;将实现了&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;ApplicationListener 接口的单例bean注册到applicationContext中(更具体点是注册到默认的事件多播器中:&amp;nbsp;&lt;/span&gt;&lt;span style=&quot;background-color: transparent;&quot;&gt;SimpleApplicationEventMulticaster&lt;/span&gt;&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;)&lt;/span&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="2220" y="4810.62" width="990" height="159.38" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-214" value="&lt;div style=&quot;text-align: left;&quot;&gt;&lt;font face=&quot;Comic Sans MS&quot;&gt;初始化前的扩展方法，目前没看到做了什么重要的操作&lt;/font&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;rounded=1;sketch=1;fillWeight=4;hachureGap=8;hachureAngle=45;jiggle=2;fillStyle=hachure;curveFitting=1;opacity=70;strokeColor=#d6b656;strokeWidth=1;align=center;verticalAlign=middle;fontFamily=Helvetica;fontSize=12;fillColor=#fff2cc;" vertex="1" parent="1">
+                    <mxGeometry x="140" y="4575" width="451.5" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-215" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.655;entryY=0.945;entryDx=0;entryDy=0;entryPerimeter=0;fontFamily=Helvetica;fontSize=12;fontColor=default;" edge="1" parent="1" source="1jjiBpRoDKVTdoKWtJoe-212" target="1jjiBpRoDKVTdoKWtJoe-195">
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="1662" y="4840"/>
+                        </Array>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="1jjiBpRoDKVTdoKWtJoe-216" value="return" style="text;whiteSpace=wrap;html=1;fontFamily=Comic Sans MS;fontSize=12;fontColor=default;strokeColor=default;dashed=1;dashPattern=12 12;" vertex="1" parent="1">
+                    <mxGeometry x="1670" y="4850" width="46" height="30" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="2zzpBtcPu0_L3Mbk041a" name="循环依赖-1">
+        <mxGraphModel dx="1032" dy="697" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="zKCEhzJBxJxq_62CNfKZ" name="循环依赖-2">
+        <mxGraphModel dx="1032" dy="697" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+            </root>
+        </mxGraphModel>
+    </diagram>
+    <diagram id="8G1CSL4CLyF7e5vbbDzY" name="循环依赖-3">
+        <mxGraphModel dx="1032" dy="697" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
             </root>
         </mxGraphModel>
     </diagram>

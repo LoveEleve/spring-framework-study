@@ -1030,7 +1030,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		// forcus ====> 执行到这里,所有的bean都已经实例化了
 		// forcus SmartInitializingSingleton 回调机制详解
 		/*
-			注意这里是针对每个bean做处理,如果某个组件bean实现了 SmartInitializingSingleton接口,那么在这里就会回调对应的扩展方法
+			注意这里是针对每个bean做处理,如果某个组件bean实现了 SmartInitializingSingleton 接口,那么在这里就会回调对应的扩展方法
 			spring默认只有一个bean实例是该类型的
 				- EventListenerMethodProcessor
 					而该Bean的作用就是扫描所有bean实例的@EventListener方法

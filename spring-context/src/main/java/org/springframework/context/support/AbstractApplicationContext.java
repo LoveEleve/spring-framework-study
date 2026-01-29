@@ -724,7 +724,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 				finishBeanFactoryInitialization(beanFactory);
 
 				// Last step: publish corresponding event.
-				// forcus  pring 容器 refresh() 的最后一步，标志着容器刷新完成
+				// forcus  spring 容器 refresh() 的最后一步，标志着容器刷新完成
 				// 发布容器刷新完成事件
 				finishRefresh();
 			}
@@ -1130,7 +1130,7 @@ public abstract class AbstractApplicationContext extends DefaultResourceLoader
 	 */
 	protected void finishBeanFactoryInitialization(ConfigurableListableBeanFactory beanFactory) {
 		// Initialize conversion service for this context.
-		// forcus 1.初始化 类型转换服务
+		// forcus 1. 初始化 类型转换服务
 		/*
 			forcus ConversionService 是 Spring 3.0 引入的统一类型转换 API，用于替代传统的 PropertyEditor
 			===
