@@ -31,6 +31,9 @@ import org.springframework.core.type.AnnotationMetadata;
  * @since 3.1
  * @see EnableAspectJAutoProxy
  */
+/*
+	forcus spring-aop 的核心类，spring在解析配置类的时候就会调用这里的 registerBeanDefinitions() 方法
+ */
 class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 
 	/**
@@ -38,18 +41,25 @@ class AspectJAutoProxyRegistrar implements ImportBeanDefinitionRegistrar {
 	 * of the @{@link EnableAspectJAutoProxy#proxyTargetClass()} attribute on the importing
 	 * {@code @Configuration} class.
 	 */
+	/*
+		AnnotationMetadata importingClassMetadata : 导入类的注解元信息(在这里就是 AppConfig 的元数据信息)
+		BeanDefinitionRegistry registry  : BeanDefinition 注册表 (通常就是 ApplicationContext )
+	 */
 	@Override
 	public void registerBeanDefinitions(
 			AnnotationMetadata importingClassMetadata, BeanDefinitionRegistry registry) {
-
+  		// forcus 注册 AnnotationAwareAspectJAutoProxyCreator,这是一个 SmartInstantiationAwareBeanPostProcessor 类型的后置处理器(并且是最高优先级)
 		AopConfigUtils.registerAspectJAnnotationAutoProxyCreatorIfNecessary(registry);
-
+		// 从 @EnableAspectJAutoProxy 注解中提取属性值
 		AnnotationAttributes enableAspectJAutoProxy =
 				AnnotationConfigUtils.attributesFor(importingClassMetadata, EnableAspectJAutoProxy.class);
+		// 处理两个内部属性值(其实就是设置到 beanDef中的相关属性中，后续会用到)
 		if (enableAspectJAutoProxy != null) {
+			// 1. proxyTargetClass
 			if (enableAspectJAutoProxy.getBoolean("proxyTargetClass")) {
 				AopConfigUtils.forceAutoProxyCreatorToUseClassProxying(registry);
 			}
+			// 2. exposeProxy
 			if (enableAspectJAutoProxy.getBoolean("exposeProxy")) {
 				AopConfigUtils.forceAutoProxyCreatorToExposeProxy(registry);
 			}
