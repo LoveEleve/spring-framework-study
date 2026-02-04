@@ -325,13 +325,65 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 * @param cacheKey the cache key for metadata access
 	 * @return a proxy wrapping the bean, or the raw bean instance as-is
 	 */
+	// forcus 该方法的作用为:判断bean是否需要代理，需要的话就创建代理返回,不需要就返回原始Bean
 	protected Object wrapIfNecessary(Object bean, String beanName, Object cacheKey) {
+		// forcus  targetSourcedBeans: 存储已经在 postProcessBeforeInstantiation() 中处理过的 Bean
+		// 作用：如果这个 Bean 之前已经创建过代理了，就不再处理 (但是默认是为null的，所以一般都会继续往下走)
 		if (StringUtils.hasLength(beanName) && this.targetSourcedBeans.contains(beanName)) {
 			return bean;
 		}
+		/*
+			advisedBeans 缓存：map缓存，记录每个bean是否需要代理
+				- true:需要嗲里
+				- false:不需要道理
+				- null ：还未判断过
+			如果之前已经判断过某个bean不需要代理了，那么直接返回即可
+			但是第一次进来时，advisedBeans是为null的，所以返回null，继续往下走
+		 */
 		if (Boolean.FALSE.equals(this.advisedBeans.get(cacheKey))) {
 			return bean;
 		}
+		// forcus 这里的逻辑就能回答我提出的问题了 - @Aspect标注的组件类,会不会被代理呢？
+		/*
+			1. isInfrastructureClass(bean.getClass())
+					beanClass 是否是以下类型的子类/实现类？
+						Advice.class          （通知接口）
+						Pointcut.class        （切点接口）
+						Advisor.class         （顾问接口）
+						AopInfrastructureBean （AOP 基础设施标记接口）
+					任意一个满足,都返回true
+						如果都不满足，额外的判断 aspectJAdvisorFactory.isAspect(beanClass)
+						检查 beanClass 是否有 @Aspect 注解
+			2. shouldSkip(bean.getClass(), beanName)
+				AspectJAwareAdvisorAutoProxyCreator()重写了该方法
+				在这里还会涉及到 另外一个逻辑，那就是 每一个 @Aspect 组件类内的 每一个通知方法 会被解析为 一个 Advisor
+				{
+						BasicAspect（一个切面类）
+							│
+							│ 解析
+							▼
+					┌─────────────────────────────────────────────────────────┐
+					│  Advisor 1: AspectJPointcutAdvisor                     │
+					│      - aspectName = "basicAspect"                      │
+					│      - advice = @Before 对应的通知                     │
+					├─────────────────────────────────────────────────────────┤
+					│  Advisor 2: AspectJPointcutAdvisor                     │
+					│      - aspectName = "basicAspect"                      │
+					│      - advice = @After 对应的通知                      │
+					├─────────────────────────────────────────────────────────┤
+					│  Advisor 3: AspectJPointcutAdvisor                     │
+					│      - aspectName = "basicAspect"                      │
+					│      - advice = @Around 对应的通知                     │
+					├─────────────────────────────────────────────────────────┤
+					│  Advisor 4: ...                                        │
+					├─────────────────────────────────────────────────────────┤
+					│  Advisor 5: ...                                        │
+					└─────────────────────────────────────────────────────────┘
+
+					注意：每个 Advisor 都记录了 aspectName = "basicAspect"
+						 这样就能知道这个 Advisor 来自哪个切面类
+				}
+		 */
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
 			return bean;

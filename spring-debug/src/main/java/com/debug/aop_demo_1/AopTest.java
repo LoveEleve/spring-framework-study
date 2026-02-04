@@ -13,7 +13,6 @@ public class AopTest {
 		AnnotationConfigApplicationContext context =
 				new AnnotationConfigApplicationContext(AppConfig.class);
 
-		// 获取代理对象
 		CalculatorService calculator = context.getBean(CalculatorService.class);
 
 		// ========== 测试场景1：正常执行 ==========

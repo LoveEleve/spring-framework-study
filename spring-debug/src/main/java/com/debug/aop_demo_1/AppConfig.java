@@ -10,7 +10,7 @@ import org.springframework.context.annotation.EnableAspectJAutoProxy;
  * @Created by ywj
  */
 @Configuration
-@EnableAspectJAutoProxy
+@EnableAspectJAutoProxy(proxyTargetClass = true)  // 强制 JDK 代理
 @ComponentScan("com.debug.aop_demo_1")
 public class AppConfig {
 }
