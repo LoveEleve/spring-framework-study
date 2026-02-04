@@ -89,10 +89,14 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 	@Override
 	protected List<Advisor> findCandidateAdvisors() {
 		// Add all the Spring advisors found according to superclass rules.
-		// forcus 调用父类: 查找容器中直接定义的 Advisor 类型的 Bean (可以直接定义一个)
+		// forcus 调用父类: 查找容器中直接定义的 Advisor 类型的 Bean (可以通过代码来直接定义一个 Advisor)
+		// forcus 在这里是没有的，但是在spring中的 事务(@Transactional) / 异步(@Async) / 缓存(@Cacheable) / ... / ，则是通过直接构造 Advisor，而不是通过 @Aspect 来定义切面的
+		// 所以在这里暂时不用关心
 		List<Advisor> advisors = super.findCandidateAdvisors();
 		// Build Advisors for all AspectJ aspects in the bean factory.
 		if (this.aspectJAdvisorsBuilder != null) {
+			// forcus buildAspectJAdvisors() 核心方法， 扫描所有 Bean，找出 @Aspect 类，解析成 Advisor，并缓存结果
+			// forcus 注意哦,这里是扫描所有的bean，解析所有的@Aspect切面类
 			advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
 		}
 		return advisors;
