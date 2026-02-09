@@ -69,15 +69,15 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 		this.advisorRetrievalHelper = new BeanFactoryAdvisorRetrievalHelperAdapter(beanFactory);
 	}
 
-
+	// forcus
 	@Override
 	@Nullable
 	protected Object[] getAdvicesAndAdvisorsForBean(
 			Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
-
+		// forcus 核心方法
 		List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
 		if (advisors.isEmpty()) {
-			return DO_NOT_PROXY;
+			return DO_NOT_PROXY; // 返回null代表不需要被代理
 		}
 		return advisors.toArray();
 	}
@@ -92,10 +92,15 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #sortAdvisors
 	 * @see #extendAdvisors
 	 */
+	// forcus
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
+		// 1. 获取容器中的所有 Advisor(对于我的demo来说,这里只有5个) - 这个在之前就已经解析过了,这里是直接返回就可以
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		// 2. forcus 过滤出能够应用到当前处理的 bean 的 Advisor
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
+		// 3. forcus 在 Advisor 链表头部添加 ExposeInvocationInterceptor
 		extendAdvisors(eligibleAdvisors);
+		// 排序
 		if (!eligibleAdvisors.isEmpty()) {
 			eligibleAdvisors = sortAdvisors(eligibleAdvisors);
 		}
@@ -120,11 +125,13 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @return the List of applicable Advisors
 	 * @see ProxyCreationContext#getCurrentProxiedBeanName()
 	 */
+	// forcus 找到可以应用到当前 bean 的 Advisor
 	protected List<Advisor> findAdvisorsThatCanApply(
 			List<Advisor> candidateAdvisors, Class<?> beanClass, String beanName) {
-
+		// 用于支持bean()切点表达式的,很少使用，skip
 		ProxyCreationContext.setCurrentProxiedBeanName(beanName);
 		try {
+			// forcus 核心方法
 			return AopUtils.findAdvisorsThatCanApply(candidateAdvisors, beanClass);
 		}
 		finally {

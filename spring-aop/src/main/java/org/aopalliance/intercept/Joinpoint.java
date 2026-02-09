@@ -66,6 +66,6 @@ public interface Joinpoint {
 	 * interceptors is installed.
 	 */
 	@Nonnull
-	AccessibleObject getStaticPart();
+		AccessibleObject getStaticPart();
 
 }

@@ -98,14 +98,26 @@ public class AspectJAwareAdvisorAutoProxyCreator extends AbstractAdvisorAutoProx
 	@Override
 	protected boolean shouldSkip(Class<?> beanClass, String beanName) {
 		// TODO: Consider optimization by caching the list of the aspect names
-		// forcus
+		// forcus 查找所有的 Advisors
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
+		/*
+			依次处理容器中的每个 Advisor
+			这是什么意思呢？
+			背景：
+				每个通知方法最终都会被包装为一个Advisor(Advisor -- Advice )
+				而一个切面类可能会解析出多个 Advisor
+				而每个Advisor中有一个属性 aspectName 用来标注 当前的 Advisor 属于哪个 切面类的
+			所以在这里,如果 当前beanName == xxxAdvisor.getAspectName()，这说明,当前bean是一个切面类，而切面类是不能被代理的，所以在这里返回true
+			当然,一般的情况下,切面类的判断逻辑在其前面的 isInfrastructureClass(bean.getClass()) 就能够判断出来了，这里的核心是上面的 findCandidateAdvisors() 方法
+		 */
 		for (Advisor advisor : candidateAdvisors) {
+			// 如果当前 bean 是某个 Advisor 的来源切面类
 			if (advisor instanceof AspectJPointcutAdvisor &&
 					((AspectJPointcutAdvisor) advisor).getAspectName().equals(beanName)) {
-				return true;
+				return true; // 跳过，切面类本身不需要代理
 			}
 		}
+		// 父类默认的逻辑为：检查 beanName 是否以 ".ORIGINAL" 结尾 (暂时跳过)
 		return super.shouldSkip(beanClass, beanName);
 	}
 

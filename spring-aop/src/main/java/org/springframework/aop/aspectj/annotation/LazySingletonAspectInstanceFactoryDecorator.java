@@ -34,7 +34,7 @@ public class LazySingletonAspectInstanceFactoryDecorator implements MetadataAwar
 	private final MetadataAwareAspectInstanceFactory maaif;
 
 	@Nullable
-	private volatile Object materialized;
+	private volatile Object materialized; // forcus 缓存切面实例，作用为保证切面实例只会被创建一次
 
 
 	/**

@@ -106,27 +106,65 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 
 
 	private static final Log logger = LogFactory.getLog(AspectJExpressionPointcut.class);
+	/*
+		切点声明所在的类(通常就是切面类)
+		作用：AspectJ 解析器在解析切点表达式时需要一个"上下文类"。
+		为什么？因为切点表达式中可能引用了同类中定义的其他切点方法。例如：
+			@Aspect
+			public class BasicAspect {
 
+				@Pointcut("execution(* com.xxx.*(..))")
+				public void myPointcut() {}
+
+				@Before("myPointcut()")  // ← 引用了同类中的 myPointcut()
+				public void beforeAdvice() {}
+			}
+		当解析 "myPointcut()" 这个表达式时，AspectJ 解析器需要知道去哪个类找 myPointcut() 方法
+		-> 就是通过 pointcutDeclarationScope 来定位的
+	 */
 	@Nullable
 	private Class<?> pointcutDeclarationScope;
-
+	// 99.9999999% 都是为false的，skip
 	private boolean aspectCompiledByAjc;
-
+	/*
+		下面两个是：切点表达式中绑定的参数的名称和类型,初始化为空数组
+		具体的参数/类型绑定是在Advice构建阶段处理的，而不是在PointCut创建阶段
+		不过大部分情况为空
+	 */
 	private String[] pointcutParameterNames = new String[0];
 
 	private Class<?>[] pointcutParameterTypes = new Class<?>[0];
-
+	// 用于支持 bean()切点指示器，很少使用，skip
 	@Nullable
 	private BeanFactory beanFactory;
-
+	// 类加载器，为什么需要类加载器呢?
+	// 因为 因为切点表达式如 execution(* com.xxx.UserService.*(..)) 中包含类名，AspectJ 解析器需要用 ClassLoader 来加载和解析这些类
 	@Nullable
 	private transient ClassLoader pointcutClassLoader;
-
+	/*
+		 AspectJ 切点表达式对象
+		 类型：org.aspectj.weaver.tools.PointcutExpression
+		 含义：这是 AspectJ 库解析后的切点表达式对象，是真正执行匹配的核心
+		 核心字段：
+		 	1. String expression(来自父类)：原始字符串，如 "execution(* com.xxx.*(..))"
+		 	2. PointcutExpression pointcutExpression: AspectJ 编译后的表达式对象，可执行匹配（延迟解析生成）
+		 为什么要延迟初始化呢？因为解析表达式需要 ClassLoader 和 BeanFactory，而这些在构造函数调用时可能还没准备好。
+		 等到真正需要做匹配时（matches() 调用时）才触发解析。
+	 */
 	@Nullable
 	private transient PointcutExpression pointcutExpression;
-
+	// 解析是否失败(熔断标识,如果解析失败了一次，后续所有的matches()都会直接返回false,避免重复报错)
 	private transient boolean pointcutParsingFailed = false;
-
+	/*
+		匹配结果缓存
+		什么是 ShadowMatch？
+			在 AspectJ 术语中，"shadow"（影子）是指程序中可能被织入的连接点。
+			ShadowMatch 是 AspectJ 对"某个方法是否匹配这个切点表达式"的判断结果
+				alwaysMatches()：确定匹配 ✅
+				neverMatches()：确定不匹配 ❌
+				maybeMatches()：不确定，需要进一步检查
+			同一个方法可能会被多次检查是否匹配,表达式匹配的开销比较大，所以必须缓存
+	 */
 	private transient Map<Method, ShadowMatch> shadowMatchCache = new ConcurrentHashMap<>(32);
 
 

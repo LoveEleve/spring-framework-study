@@ -85,7 +85,9 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 	 * @return the list of {@link org.springframework.aop.Advisor} beans
 	 * @see #isEligibleBean
 	 */
+	// forcus 找到所有的
 	public List<Advisor> buildAspectJAdvisors() {
+		// 第一次查找的时候该集合是为null的
 		List<String> aspectNames = this.aspectBeanNames;
 
 		if (aspectNames == null) {
@@ -94,33 +96,89 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 				if (aspectNames == null) {
 					List<Advisor> advisors = new ArrayList<>();
 					aspectNames = new ArrayList<>();
+					// forcus-1 获取容器中所有的beanName
+					/*
+						有两个参数需要关注一下：
+							1. includeNonSingletons：true,包括非单例
+							2. allowEagerInit：false，不触发bean的实例化
+							对于aop_demo_1 来说, 我的beanNames = [appConfig,basicAspect,calculatorService,spring内部的beanName]
+					 */
 					String[] beanNames = BeanFactoryUtils.beanNamesForTypeIncludingAncestors(
 							this.beanFactory, Object.class, true, false);
+					// 依次处理每个beanName
 					for (String beanName : beanNames) {
+						// 检查是否符合条件（可被子类重写过滤）,用于过滤某些切面(默认都是返回true的)
+						// 这里使用的比较少,skip
 						if (!isEligibleBean(beanName)) {
 							continue;
 						}
 						// We must be careful not to instantiate beans eagerly as in this case they
 						// would be cached by the Spring container but would not have been weaved.
+						// 获取bean的类型
 						Class<?> beanType = this.beanFactory.getType(beanName, false);
 						if (beanType == null) {
 							continue;
 						}
+						// forcus-2 判断当前bean是否是@Aspect类
+						// 逻辑为：检查当前bean所对应的类上是否标注了@Aspect注解
 						if (this.advisorFactory.isAspect(beanType)) {
+							// forcus 当前bean是切面类
 							try {
+								// forcus 创建切面元数据
+								/*
+									public class AspectMetadata {
+												private final String aspectName;        // "basicAspect"
+												private final Class<?> aspectClass;     // BasicAspect.class
+												private transient AjType<?> ajType;     // AspectJ 类型信息
+												private final Pointcut perClausePointcut;  // 单例时为 Pointcut.TRUE
+									}
+								 */
 								AspectMetadata amd = new AspectMetadata(beanType, beanName);
+								/*
+									切面实例化模型,99%的情况下，切面对应的都是单例(默认就是单例的),其他情况暂时不关心
+									切面是单例的含义是：所有的对象都共享同一个切面bean实例
+								 */
 								if (amd.getAjType().getPerClause().getKind() == PerClauseKind.SINGLETON) {
+									// forcus 创建切面实例工厂
+									/*
+										public class BeanFactoryAspectInstanceFactory implements MetadataAwareAspectInstanceFactory {
+											private final BeanFactory beanFactory;     // Spring BeanFactory
+											private final String name;                  // "basicAspect"
+											private final AspectMetadata aspectMetadata; // 上面创建的元数据
+										}
+									 */
+									//
 									MetadataAwareAspectInstanceFactory factory =
 											new BeanFactoryAspectInstanceFactory(this.beanFactory, beanName);
+									// forcus 解析切面类,生成Advisor列表
+									/*
+										1. 扫描当前切面类中所有带有 @Before、@After、@Around、@AfterReturning、@AfterThrowing 注解的方法
+										2. 每个方法生成一个 Advisor
+										对于我的 basicAspect 来说, 会生成 5 个 Advisor
+									 */
 									List<Advisor> classAdvisors = this.advisorFactory.getAdvisors(factory);
+									// forcus 缓存结果 ，这里缓存的是 切面类 --> 切面类对应的Advisor列表(就是在切面类内部定义的通知方法)
+									/*
+										 Map<String, List<Advisor>> advisorsCache = new ConcurrentHashMap<>()
+										┌─────────────────────────────────────────────────────────────┐
+										│  aspectBeanNames = ["basicAspect"]                          │
+										│                                                             │
+										│  advisorsCache = {                                          │
+										│      "basicAspect" → [Advisor1, Advisor2, Advisor3,        │
+										│                       Advisor4, Advisor5]                   │
+										│  }                                                          │
+										└─────────────────────────────────────────────────────────────┘
+
+									 */
 									if (this.beanFactory.isSingleton(beanName)) {
-										this.advisorsCache.put(beanName, classAdvisors);
+										this.advisorsCache.put(beanName, classAdvisors); // forcus 缓存 Advisor
 									}
 									else {
-										this.aspectFactoryCache.put(beanName, factory);
+										this.aspectFactoryCache.put(beanName, factory); // 缓存工厂，不需要关心,通常用于原型bean
 									}
 									advisors.addAll(classAdvisors);
 								}
+								// 暂时不关心
 								else {
 									// Per target or per this.
 									if (this.beanFactory.isSingleton(beanName)) {
@@ -132,6 +190,7 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 									this.aspectFactoryCache.put(beanName, factory);
 									advisors.addAll(this.advisorFactory.getAdvisors(factory));
 								}
+								// 记录所有切面 bean的名字
 								aspectNames.add(beanName);
 							}
 							catch (IllegalArgumentException | IllegalStateException | AopConfigException ex) {
@@ -141,6 +200,7 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 							}
 						}
 					}
+					// 最后将切面类的类名保存到成员变量中
 					this.aspectBeanNames = aspectNames;
 					return advisors;
 				}
@@ -150,6 +210,8 @@ public class BeanFactoryAspectJAdvisorsBuilder {
 		if (aspectNames.isEmpty()) {
 			return Collections.emptyList();
 		}
+
+		// 后续调用,走这里的逻辑,因为 aspectBeanNames 因为不为null了
 		List<Advisor> advisors = new ArrayList<>();
 		for (String aspectName : aspectNames) {
 			List<Advisor> cachedAdvisors = this.advisorsCache.get(aspectName);

@@ -344,53 +344,61 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			return bean;
 		}
 		// forcus 这里的逻辑就能回答我提出的问题了 - @Aspect标注的组件类,会不会被代理呢？
-		/*
-			1. isInfrastructureClass(bean.getClass())
-					beanClass 是否是以下类型的子类/实现类？
-						Advice.class          （通知接口）
-						Pointcut.class        （切点接口）
-						Advisor.class         （顾问接口）
-						AopInfrastructureBean （AOP 基础设施标记接口）
-					任意一个满足,都返回true
-						如果都不满足，额外的判断 aspectJAdvisorFactory.isAspect(beanClass)
-						检查 beanClass 是否有 @Aspect 注解
-			2. shouldSkip(bean.getClass(), beanName)
-				AspectJAwareAdvisorAutoProxyCreator()重写了该方法
-				在这里还会涉及到 另外一个逻辑，那就是 每一个 @Aspect 组件类内的 每一个通知方法 会被解析为 一个 Advisor
-				{
-						BasicAspect（一个切面类）
-							│
-							│ 解析
-							▼
-					┌─────────────────────────────────────────────────────────┐
-					│  Advisor 1: AspectJPointcutAdvisor                     │
-					│      - aspectName = "basicAspect"                      │
-					│      - advice = @Before 对应的通知                     │
-					├─────────────────────────────────────────────────────────┤
-					│  Advisor 2: AspectJPointcutAdvisor                     │
-					│      - aspectName = "basicAspect"                      │
-					│      - advice = @After 对应的通知                      │
-					├─────────────────────────────────────────────────────────┤
-					│  Advisor 3: AspectJPointcutAdvisor                     │
-					│      - aspectName = "basicAspect"                      │
-					│      - advice = @Around 对应的通知                     │
-					├─────────────────────────────────────────────────────────┤
-					│  Advisor 4: ...                                        │
-					├─────────────────────────────────────────────────────────┤
-					│  Advisor 5: ...                                        │
-					└─────────────────────────────────────────────────────────┘
+	/*
+		1. isInfrastructureClass(bean.getClass())
+				beanClass 是否是以下类型的子类/实现类？
+					Advice.class          （通知接口）
+					Pointcut.class        （切点接口）
+					Advisor.class         （顾问接口）
+					AopInfrastructureBean （AOP 基础设施标记接口）
+				任意一个满足,都返回true
+					如果都不满足，额外的判断 aspectJAdvisorFactory.isAspect(beanClass)
+					检查 beanClass 是否有 @Aspect 注解
+		2. shouldSkip(bean.getClass(), beanName)
+			在 AbstractAutoProxyCreator 中默认实现：检查是否为原始实例（带 .ORIGINAL 后缀）
+			AspectJAwareAdvisorAutoProxyCreator 重写了该方法，增加了对切面类自身的跳过逻辑：
+				- 遍历所有候选 Advisors
+				- 如果当前 beanName 是某个 AspectJPointcutAdvisor 的 aspectName（即切面类自身）
+				- 则返回 true，跳过代理（切面类本身不需要被代理）
+			
+			这里还会涉及到另一个逻辑：每一个 @Aspect 组件类内的每一个通知方法会被解析为一个 Advisor
+			{
+					BasicAspect（一个切面类）
+						│
+						│ 解析
+						▼
+				┌─────────────────────────────────────────────────────────┐
+				│  Advisor 1: AspectJPointcutAdvisor                     │
+				│      - aspectName = "basicAspect"                      │
+				│      - advice = @Before 对应的通知                     │
+				├─────────────────────────────────────────────────────────┤
+				│  Advisor 2: AspectJPointcutAdvisor                     │
+				│      - aspectName = "basicAspect"                      │
+				│      - advice = @After 对应的通知                      │
+				├─────────────────────────────────────────────────────────┤
+				│  Advisor 3: AspectJPointcutAdvisor                     │
+				│      - aspectName = "basicAspect"                      │
+				│      - advice = @Around 对应的通知                     │
+				├─────────────────────────────────────────────────────────┤
+				│  Advisor 4: ...                                        │
+				├─────────────────────────────────────────────────────────┤
+				│  Advisor 5: ...                                        │
+				└─────────────────────────────────────────────────────────┘
 
-					注意：每个 Advisor 都记录了 aspectName = "basicAspect"
-						 这样就能知道这个 Advisor 来自哪个切面类
-				}
+				注意：每个 Advisor 都记录了 aspectName = "basicAspect"
+					 这样就能知道这个 Advisor 来自哪个切面类
+			}
 		 */
+		// forcus 这里还有个关键点，那就是shouldSkip()方法会处理容器内所有的 切面类(@Aspect) 以及 切面类内的每一个通知方法(创建对应的Advisor / Advice,并且建立对应的联系)
 		if (isInfrastructureClass(bean.getClass()) || shouldSkip(bean.getClass(), beanName)) {
 			this.advisedBeans.put(cacheKey, Boolean.FALSE);
 			return bean;
 		}
-
+		// ---- forcus 
+		//  为当前 Bean 查找所有能够应用的 Advisor（通知器），以此决定这个 Bean 是否需要被代理，以及被哪些通知增强。
 		// Create proxy if we have advice.
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+
 		if (specificInterceptors != DO_NOT_PROXY) {
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
 			Object proxy = createProxy(

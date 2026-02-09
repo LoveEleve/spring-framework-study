@@ -303,9 +303,11 @@ public abstract class AopUtils {
 	 * (may be the incoming List as-is)
 	 */
 	public static List<Advisor> findAdvisorsThatCanApply(List<Advisor> candidateAdvisors, Class<?> clazz) {
+		// 如果候选的Advisor为空，直接返回空,也即没有可以应用到当前 bean 的 Advisor
 		if (candidateAdvisors.isEmpty()) {
 			return candidateAdvisors;
 		}
+		// 存储可以应用到当前 bean 的 Advisor
 		List<Advisor> eligibleAdvisors = new ArrayList<>();
 		for (Advisor candidate : candidateAdvisors) {
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {

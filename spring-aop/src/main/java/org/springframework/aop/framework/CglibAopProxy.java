@@ -740,8 +740,9 @@ class CglibAopProxy implements AopProxy, Serializable {
 	/**
 	 * Implementation of AOP Alliance MethodInvocation used by this AOP proxy.
 	 */
+	// forcus 专门用于 CGLIB 代理
 	private static class CglibMethodInvocation extends ReflectiveMethodInvocation {
-
+		// forcus cglib生成的快速调用代理，避免反射带来的性能损耗
 		@Nullable
 		private final MethodProxy methodProxy;
 

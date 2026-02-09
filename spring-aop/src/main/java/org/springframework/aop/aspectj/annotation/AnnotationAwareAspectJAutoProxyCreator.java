@@ -97,6 +97,7 @@ public class AnnotationAwareAspectJAutoProxyCreator extends AspectJAwareAdvisorA
 		if (this.aspectJAdvisorsBuilder != null) {
 			// forcus buildAspectJAdvisors() 核心方法， 扫描所有 Bean，找出 @Aspect 类，解析成 Advisor，并缓存结果
 			// forcus 注意哦,这里是扫描所有的bean，解析所有的@Aspect切面类
+			// 下面就去看下 buildAspectJAdvisors()方法
 			advisors.addAll(this.aspectJAdvisorsBuilder.buildAspectJAdvisors());
 		}
 		return advisors;

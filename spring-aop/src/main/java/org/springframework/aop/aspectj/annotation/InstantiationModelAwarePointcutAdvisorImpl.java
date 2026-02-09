@@ -45,56 +45,113 @@ import org.springframework.lang.Nullable;
 @SuppressWarnings("serial")
 final class InstantiationModelAwarePointcutAdvisorImpl
 		implements InstantiationModelAwarePointcutAdvisor, AspectJPrecedenceInformation, Serializable {
-
+	/*
+		含义: 空的 Advice 占位符
+		作用: 当无法创建真正的 Advice 时返回
+	 */
 	private static final Advice EMPTY_ADVICE = new Advice() {};
 
-
+	/*
+		从注解中解析出来的原始切点表达式对象
+		比如@Before("calculatorMethods()") -> expression = "calculatorMethods()"
+	 */
 	private final AspectJExpressionPointcut declaredPointcut;
-
+	/*
+		含义：声明通知方法的类
+		eg:com.debug.aop_demo_1.BasicAspec
+	 */
 	private final Class<?> declaringClass;
-
+	/*
+		含义: 通知方法名
+		示例: "around", "before", "after" 等
+	 */
 	private final String methodName;
-
+	/*
+		含义: 通知方法的参数类型数组
+		示例: [ProceedingJoinPoint.class] 或 [JoinPoint.class]
+	 */
 	private final Class<?>[] parameterTypes;
-
+	/*
+		含义: 通知方法的反射对象
+		作用: 创建 Advice 时传入，最终用于反射调用
+		示例: BasicAspect.around(ProceedingJoinPoint)
+	 */
 	private transient Method aspectJAdviceMethod;
-
+	/*
+		含义: Advice 工厂
+		作用: 调用 getAdvice() 创建 Advice 对象
+		示例: ReflectiveAspectJAdvisorFactory
+	 */
 	private final AspectJAdvisorFactory aspectJAdvisorFactory;
-
+	/*
+		含义: 切面实例工厂
+		作用: 获取切面实例、元数据、优先级
+		示例: LazySingletonAspectInstanceFactoryDecorator
+	 */
 	private final MetadataAwareAspectInstanceFactory aspectInstanceFactory;
-
+	/*
+		含义: 在切面内的声明顺序
+		作用: 同切面内多个通知的排序
+	 */
 	private final int declarationOrder;
-
+	/*
+		含义: 切面 Bean 的名称
+		示例: "basicAspect"
+	 */
 	private final String aspectName;
-
+	/*
+		Spring AOP 实际使用的切点,用于匹配目标方法
+		非懒加载时 = declaredPointcut (通常都是非懒加载)
+	 */
 	private final Pointcut pointcut;
-
+	// 是否懒加载 Advice(单例切面 = false,99.9%是false)
 	private final boolean lazy;
-
+	/*
+		forcus
+			含义：已经实例化的通知对象
+			作用：执行通知逻辑的核心对象
+				1. @Around -> AspectJAroundAdvice -> MethodInterceptor -> invoke(MethodInvocation)
+				2. @Before -> AspectJMethodBeforeAdvice -> MethodBeforeAdvice -> before(MethodInvocation)
+				3. @After -> AspectJAfterAdvice -> MethodInterceptor -> invoke(MethodInvocation)
+				4. @AfterReturning -> AspectJAfterReturningAdvice -> AfterReturningAdvice -> afterReturning(MethodInvocation)
+				5. @AfterThrowing -> AspectJAfterThrowingAdvice -> ThrowsAdvice -> afterThrowing(MethodInvocation)
+	 */
 	@Nullable
 	private Advice instantiatedAdvice;
-
+	/*
+		 含义: 是否是前置通知
+		 作用: 懒计算，用于排序
+	 */
 	@Nullable
 	private Boolean isBeforeAdvice;
-
+	/*
+		含义: 是否是后置通知
+		作用: 懒计算，用于排序
+	 */
 	@Nullable
 	private Boolean isAfterAdvice;
 
-
+	/*
+		构造方法可以分为下面阶段：
+			1. 保存基本属性
+			2. 判断是否是懒加载(99.9%的情况下为非懒加载)：
+	 */
 	public InstantiationModelAwarePointcutAdvisorImpl(AspectJExpressionPointcut declaredPointcut,
 			Method aspectJAdviceMethod, AspectJAdvisorFactory aspectJAdvisorFactory,
 			MetadataAwareAspectInstanceFactory aspectInstanceFactory, int declarationOrder, String aspectName) {
+		// === 一些属性的保存 ===
+		this.declaredPointcut = declaredPointcut; // 保存切点表达式对象,用于匹配目标方法
 
-		this.declaredPointcut = declaredPointcut;
-		this.declaringClass = aspectJAdviceMethod.getDeclaringClass();
-		this.methodName = aspectJAdviceMethod.getName();
-		this.parameterTypes = aspectJAdviceMethod.getParameterTypes();
-		this.aspectJAdviceMethod = aspectJAdviceMethod;
-		this.aspectJAdvisorFactory = aspectJAdvisorFactory;
-		this.aspectInstanceFactory = aspectInstanceFactory;
-		this.declarationOrder = declarationOrder;
-		this.aspectName = aspectName;
+		this.declaringClass = aspectJAdviceMethod.getDeclaringClass(); // 切面类class
+		this.methodName = aspectJAdviceMethod.getName(); // 要调用的通知方法名称
+		this.parameterTypes = aspectJAdviceMethod.getParameterTypes(); // 参数类型 -> [ProceedingJoinPoint.class]
+		this.aspectJAdviceMethod = aspectJAdviceMethod; // 通知方法的Method引用，创建Advice时传入,最终通过反射调用
+		this.aspectJAdvisorFactory = aspectJAdvisorFactory; // 调用其 getAdvice()方法来创建具体的Advice
+		this.aspectInstanceFactory = aspectInstanceFactory; // 用于获取切面实例
+		this.declarationOrder = declarationOrder; // 同一切面内多个通知的排序依据
+		this.aspectName = aspectName; // 切面名称
 
+		// 懒加载(skip)
 		if (aspectInstanceFactory.getAspectMetadata().isLazilyInstantiated()) {
 			// Static part of the pointcut is a lazy type.
 			Pointcut preInstantiationPointcut = Pointcuts.union(
@@ -107,10 +164,26 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 					this.declaredPointcut, preInstantiationPointcut, aspectInstanceFactory);
 			this.lazy = true;
 		}
+		// forcus 非懒加载(99.9%的情况都是走这里的)
 		else {
 			// A singleton aspect.
+			/*
+				直接把声明的切点表达式作为 Spring AOP 实际使用的切点。没有任何额外包装。
+				后续 Spring 在创建代理时，会调用 getPointcut() 获取此切点，
+				用它来匹配目标类和方法。
+			 */
 			this.pointcut = this.declaredPointcut;
-			this.lazy = false;
+			this.lazy = false; // 标记为懒加载
+			/*
+				forcus 这个是 真正执行通知逻辑的对象，它将在业务代码中写的通知方法 包装为 spring aop 能识别和调用的方式
+				spring 需要的是 AspectJAroundAdvice(实现了 MethodInterceptor )
+				5种 Advice:
+					@Around -> AspectJAroundAdvice -> MethodInterceptor -> invoke(MethodInvocation)
+					@Before -> AspectJMethodBeforeAdvice -> MethodBeforeAdvice -> before(MethodInvocation)
+					@After -> AspectJAfterAdvice -> MethodInterceptor -> invoke(MethodInvocation)
+					@AfterReturning -> AspectJAfterReturningAdvice -> AfterReturningAdvice -> afterReturning(MethodInvocation)
+					@AfterThrowing -> AspectJAfterThrowingAdvice -> MethodInterceptor -> invoke(MethodInvocation)
+			 */
 			this.instantiatedAdvice = instantiateAdvice(this.declaredPointcut);
 		}
 	}
@@ -145,7 +218,7 @@ final class InstantiationModelAwarePointcutAdvisorImpl
 		}
 		return this.instantiatedAdvice;
 	}
-
+	// forcus 创建各种Advice - getAdvice()
 	private Advice instantiateAdvice(AspectJExpressionPointcut pointcut) {
 		Advice advice = this.aspectJAdvisorFactory.getAdvice(this.aspectJAdviceMethod, pointcut,
 				this.aspectInstanceFactory, this.declarationOrder, this.aspectName);
