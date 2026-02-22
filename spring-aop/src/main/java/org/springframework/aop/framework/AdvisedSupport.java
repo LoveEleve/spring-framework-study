@@ -465,12 +465,14 @@ public class AdvisedSupport extends ProxyConfig implements Advised {
 	 * @return a List of MethodInterceptors (may also include InterceptorAndDynamicMethodMatchers)
 	 */
 	public List<Object> getInterceptorsAndDynamicInterceptionAdvice(Method method, @Nullable Class<?> targetClass) {
-		MethodCacheKey cacheKey = new MethodCacheKey(method);
+		MethodCacheKey cacheKey = new MethodCacheKey(method); // 构建方法的缓存key
+		// Map<MethodCacheKey, List<Object>> methodCache 从缓存中获取该方法对应的拦截器链(但是第一次都是为空的)
 		List<Object> cached = this.methodCache.get(cacheKey);
 		if (cached == null) {
+			// forcus 调用工厂动态的构建
 			cached = this.advisorChainFactory.getInterceptorsAndDynamicInterceptionAdvice(
 					this, method, targetClass);
-			this.methodCache.put(cacheKey, cached);
+			this.methodCache.put(cacheKey, cached); // 放入到缓存中
 		}
 		return cached;
 	}

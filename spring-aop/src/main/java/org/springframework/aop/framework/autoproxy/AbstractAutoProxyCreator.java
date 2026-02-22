@@ -289,8 +289,9 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
 		if (bean != null) {
 			Object cacheKey = getCacheKey(bean.getClass(), beanName);
+			// 暂时不关注aop-循环依赖的问题
 			if (this.earlyProxyReferences.remove(cacheKey) != bean) {
-				return wrapIfNecessary(bean, beanName, cacheKey);
+				return wrapIfNecessary(bean, beanName, cacheKey); // 返回代理对象,下一步就是看下,当调用方法时,是如何一步步调用到业务方法的
 			}
 		}
 		return bean;
@@ -395,16 +396,23 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 			return bean;
 		}
 		// ---- forcus 
-		//  为当前 Bean 查找所有能够应用的 Advisor（通知器），以此决定这个 Bean 是否需要被代理，以及被哪些通知增强。
+		// 为当前 Bean 查找所有能够应用的 Advisor（通知器），以此决定这个 Bean 是否需要被代理，以及被哪些通知增强。
+		// 以我写的demo为例,calculatorService 这个Bean的specificInterceptors长度为6
+		// 因为 BasicAspect这个切面类内有5个通知(对应5个Advisor),都会对 CalculatorService 这个类的某个方法生效
+		// 然后spring默认会添加一个 ExposeInvocationInterceptor 到第一个位置 !! forcus 这点别忘记了,这个 Advisor可是很重要的
+		// forcus 注意 这里的 specificInterceptors[] 就已经包含了所有匹配当前 bean 的所有 Advisor 了
 		// Create proxy if we have advice.
 		Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
 
 		if (specificInterceptors != DO_NOT_PROXY) {
+			// 缓存，当前bean是需要被代理的(通常用于原型bean) - 第二个参数为true
 			this.advisedBeans.put(cacheKey, Boolean.TRUE);
+			// forcus 核心方法 - 创建代理(只关注cglib代理的创建)
 			Object proxy = createProxy(
 					bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+			// forcus 主要用于 aop 的循环依赖，后续进行单独分析
 			this.proxyTypes.put(cacheKey, proxy.getClass());
-			return proxy;
+			return proxy; // 返回代理对象
 		}
 
 		this.advisedBeans.put(cacheKey, Boolean.FALSE);
@@ -484,26 +492,32 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 
 	/**
 	 * Create an AOP proxy for the given bean.
-	 * @param beanClass the class of the bean
-	 * @param beanName the name of the bean
-	 * @param specificInterceptors the set of interceptors that is
+	 * @param beanClass the class of the bean 原始bean的class类型
+	 * @param beanName the name of the bean beanName
+	 * @param specificInterceptors the set of interceptors that is 应用于该bean的拦截器数组
 	 * specific to this bean (may be empty, but not null)
-	 * @param targetSource the TargetSource for the proxy,
+	 * @param targetSource the TargetSource for the proxy, 目标源(包含了原始目标bean)
 	 * already pre-configured to access the bean
 	 * @return the AOP proxy for the bean
 	 * @see #buildAdvisors
 	 */
 	protected Object createProxy(Class<?> beanClass, @Nullable String beanName,
 			@Nullable Object[] specificInterceptors, TargetSource targetSource) {
-
+		// forcus 将 Bean 的原始目标类类型信息保存到 BeanDefinition 中，以便后续需要时能够获取
 		if (this.beanFactory instanceof ConfigurableListableBeanFactory) {
 			AutoProxyUtils.exposeTargetClass((ConfigurableListableBeanFactory) this.beanFactory, beanName, beanClass);
 		}
-
-		ProxyFactory proxyFactory = new ProxyFactory();
+ 		// forcus 创建代理工厂 -- spring的核心代理创建类
+		ProxyFactory proxyFactory = new ProxyFactory(); // 有个疑问 -- 每个对象都有一个代理工厂吗？用完就扔？
+		// 从当前对象（AbstractAutoProxyCreator）复制代理配置
+		/*
+			什么意思？
+				- 这里不是拷贝的意思，而是初始化代理工厂的配置属性
+		 */
 		proxyFactory.copyFrom(this);
-
+		// forcus 因为springboot默认强制使用的就是 cglib代理,所以在这里只关系 cglib 相关的逻辑
 		if (proxyFactory.isProxyTargetClass()) {
+			// 处理引入相关的逻辑，skip
 			// Explicit handling of JDK proxy targets and lambdas (for introduction advice scenarios)
 			if (Proxy.isProxyClass(beanClass) || ClassUtils.isLambdaClass(beanClass)) {
 				// Must allow for introductions; can't just set interfaces to the proxy's interfaces only.
@@ -512,7 +526,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 				}
 			}
 		}
-		else {
+		else { // 自动选择代理模式(skip)
 			// No proxyTargetClass flag enforced, let's apply our default checks...
 			if (shouldProxyTargetClass(beanClass, beanName)) {
 				proxyFactory.setProxyTargetClass(true);
@@ -521,15 +535,15 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 				evaluateProxyInterfaces(beanClass, proxyFactory);
 			}
 		}
-
+		// forcus 构建 Advisor数组 以我的demo为例,此时为6个(有一个是spring增加的,放在数组的第一个位置)
 		Advisor[] advisors = buildAdvisors(beanName, specificInterceptors);
-		proxyFactory.addAdvisors(advisors);
-		proxyFactory.setTargetSource(targetSource);
-		customizeProxyFactory(proxyFactory);
+		proxyFactory.addAdvisors(advisors); // 添加到代理工厂中(属性赋值)
+		proxyFactory.setTargetSource(targetSource); // 保存被代理对象的原始对象(实际是targetSource,内部包装了原始目标对象)
+		customizeProxyFactory(proxyFactory); // 自定义hook函数,很少使用,skip
 
 		proxyFactory.setFrozen(this.freezeProxy);
 		if (advisorsPreFiltered()) {
-			proxyFactory.setPreFiltered(true);
+			proxyFactory.setPreFiltered(true); // 标记Advisor已经预先筛选过，执行时跳过ClassFilter检查，提高性能
 		}
 
 		// Use original ClassLoader if bean class not locally loaded in overriding class loader
@@ -537,7 +551,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		if (classLoader instanceof SmartClassLoader && classLoader != beanClass.getClassLoader()) {
 			classLoader = ((SmartClassLoader) classLoader).getOriginalClassLoader();
 		}
-		return proxyFactory.getProxy(classLoader);
+		return proxyFactory.getProxy(classLoader); // forcus 创建代理对象
 	}
 
 	/**
@@ -578,8 +592,10 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 	 */
 	protected Advisor[] buildAdvisors(@Nullable String beanName, @Nullable Object[] specificInterceptors) {
 		// Handle prototypes correctly...
+		// 手动注册拦截器的操作，很少使用了，skip
+		// commonInterceptors 这个通常是空的
 		Advisor[] commonInterceptors = resolveInterceptorNames();
-
+		// 合并 specificInterceptors & commonInterceptors(通常是空的)
 		List<Object> allInterceptors = new ArrayList<>();
 		if (specificInterceptors != null) {
 			if (specificInterceptors.length > 0) {
@@ -617,6 +633,7 @@ public abstract class AbstractAutoProxyCreator extends ProxyProcessorSupport
 		BeanFactory bf = this.beanFactory;
 		ConfigurableBeanFactory cbf = (bf instanceof ConfigurableBeanFactory ? (ConfigurableBeanFactory) bf : null);
 		List<Advisor> advisors = new ArrayList<>();
+		// forcus 这里就是 AnnotationAwareAspectJAutoProxyCreator 中的属性(有张图：讲解了这个类的继承体系)
 		for (String beanName : this.interceptorNames) {
 			if (cbf == null || !cbf.isCurrentlyInCreation(beanName)) {
 				Assert.state(bf != null, "BeanFactory required for resolving interceptor names");

@@ -98,7 +98,7 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
 		// 2. forcus 过滤出能够应用到当前处理的 bean 的 Advisor
 		List<Advisor> eligibleAdvisors = findAdvisorsThatCanApply(candidateAdvisors, beanClass, beanName);
-		// 3. forcus 在 Advisor 链表头部添加 ExposeInvocationInterceptor
+		// 3. forcus 在 Advisor 链表头部添加 ExposeInvocationInterceptor 
 		extendAdvisors(eligibleAdvisors);
 		// 排序
 		if (!eligibleAdvisors.isEmpty()) {

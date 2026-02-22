@@ -1,4 +1,4 @@
-package com.debug.aop_demo_1;
+package com.debug.aop_demo_simple;
 
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 

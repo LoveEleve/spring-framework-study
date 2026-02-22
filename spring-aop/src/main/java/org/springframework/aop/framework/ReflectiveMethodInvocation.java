@@ -162,12 +162,20 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 	@Nullable
 	public Object proceed() throws Throwable {
 		// We start with an index of -1 and increment early.
+		/*
+			初始化时 currentInterceptorIndex = -1
+			interceptorsAndDynamicMethodMatchers.size() = 6 (以我的demo为例)
+			this.interceptorsAndDynamicMethodMatchers.size() - 1 = 5 (-1 ~ 5 就是6个拦截器，如果都执行完了，那么执行目标方法)
+		 */
 		if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
-			return invokeJoinpoint();
+			return invokeJoinpoint(); // 已经到最后一个拦截器了，执行目标方法
 		}
-
+		/*
+			每次获取 ++this.currentInterceptorIndex 索引的拦截器，第一个是 ExposeInvocationInterceptor
+		 */
 		Object interceptorOrInterceptionAdvice =
 				this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
+		// 运行时拦截器,很少使用,skip
 		if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
 			// Evaluate dynamic method matcher here: static part will already have
 			// been evaluated and found to match.
@@ -186,6 +194,7 @@ public class ReflectiveMethodInvocation implements ProxyMethodInvocation, Clonea
 		else {
 			// It's an interceptor, so we just invoke it: The pointcut will have
 			// been evaluated statically before this object was constructed.
+			// forcus 绝大多数都是走这里,把this传入了进去，this就是 CglibMethodInvocation,拦截器可以继续调用proceed()方法
 			return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
 		}
 	}

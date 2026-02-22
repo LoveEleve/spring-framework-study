@@ -84,12 +84,12 @@ public class DefaultTransactionStatus extends AbstractTransactionStatus {
 			@Nullable Object transaction, boolean newTransaction, boolean newSynchronization,
 			boolean readOnly, boolean debug, @Nullable Object suspendedResources) {
 
-		this.transaction = transaction;
-		this.newTransaction = newTransaction;
-		this.newSynchronization = newSynchronization;
-		this.readOnly = readOnly;
+		this.transaction = transaction; // DataSourceTransactionObject -- 真正持有connectionHolder
+		this.newTransaction = newTransaction; // rue ← 这是一个新事务
+		this.newSynchronization = newSynchronization; // true ← 需要新初始化同步
+		this.readOnly = readOnly; // false
 		this.debug = debug;
-		this.suspendedResources = suspendedResources;
+		this.suspendedResources = suspendedResources; // null（首次调用无挂起资源）
 	}
 
 

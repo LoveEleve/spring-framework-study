@@ -121,11 +121,20 @@ public class RuleBasedTransactionAttribute extends DefaultTransactionAttribute i
 	 * return false.
 	 * @see TransactionAttribute#rollbackOn(java.lang.Throwable)
 	 */
+	// forcus 基于深度的竞争匹配算法
 	@Override
 	public boolean rollbackOn(Throwable ex) {
 		RollbackRuleAttribute winner = null;
 		int deepest = Integer.MAX_VALUE;
 
+		/*
+			1. forcus 遍历所有的回滚规则(包括 回滚规则 和 不回滚规则)，调用每条规则的 getDepth()方法
+			2. forcus 找到深度最小的规则作为winner(深度越小 -> 匹配越精确 -> 优先级越高)
+			3. forcus 如果没有任何规则匹配（winner == null）→ 调用 super.rollbackOn(ex)，
+			    	  即 DefaultTransactionAttribute 的默认行为：RuntimeException 或 Error 回滚，checked exception 不回滚
+			4. forcus 如果有规则匹配 → 看 winner 是 RollbackRuleAttribute 还是 NoRollbackRuleAttribute，前者回滚，后者不回滚
+
+		 */
 		if (this.rollbackRules != null) {
 			for (RollbackRuleAttribute rule : this.rollbackRules) {
 				int depth = rule.getDepth(ex);

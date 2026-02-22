@@ -1,4 +1,4 @@
-package com.debug.aop_demo_1;
+package com.debug.aop_demo_simple;
 
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -18,7 +18,7 @@ public class BasicAspect {
 	/**
 	 * 定义切点：拦截 CalculatorService 的所有方法
 	 */
-	@Pointcut("execution(* com.debug.aop_demo_1.CalculatorService.*(..))")
+	@Pointcut("execution(* com.debug.aop_demo_simple.CalculatorService.*(..))")
 	public void calculatorMethods() {
 	}
 
@@ -80,7 +80,7 @@ public class BasicAspect {
 
 		Object result = null;
 		try {
-			// 执行目标方法
+			// 执行目标方法 -- 这是错误的注释,这里是继续执行拦截器链 - ReflectiveMethodInvocation.proceed()
 			result = joinPoint.proceed();
 			System.out.println("【环绕通知 @Around - 后】方法名: " + methodName + " 执行成功");
 		} catch (Exception e) {

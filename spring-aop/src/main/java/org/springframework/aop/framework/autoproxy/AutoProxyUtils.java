@@ -110,7 +110,11 @@ public abstract class AutoProxyUtils {
 	 */
 	static void exposeTargetClass(
 			ConfigurableListableBeanFactory beanFactory, @Nullable String beanName, Class<?> targetClass) {
-
+		/*
+			beanFactory.getMergedBeanDefinition(beanName)：获取beanDef(在其父类上有一个属性 attributes)
+			setAttribute(ORIGINAL_TARGET_CLASS_ATTRIBUTE, targetClass)
+			-> private final Map<String, Object> attributes = new LinkedHashMap<>()
+		 */
 		if (beanName != null && beanFactory.containsBeanDefinition(beanName)) {
 			beanFactory.getMergedBeanDefinition(beanName).setAttribute(ORIGINAL_TARGET_CLASS_ATTRIBUTE, targetClass);
 		}

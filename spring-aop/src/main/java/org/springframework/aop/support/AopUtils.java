@@ -223,11 +223,21 @@ public abstract class AopUtils {
 	 */
 	public static boolean canApply(Pointcut pc, Class<?> targetClass, boolean hasIntroductions) {
 		Assert.notNull(pc, "Pointcut must not be null");
+		// forcus 类级别匹配(快速路径) -- 在这里获取的就是 this 对象 (pointCut本身就是一个ClassFilter)
+		/*
+			这是什么意思呢？
+			比如某个切面类中的切点为：@Pointcut("execution(* com.debug.aop_demo_1.CalculatorService.*(..))")
+			而当前beanName = UserService,那么该切面类肯定不是当前bean的候选Advisor
+		 */
 		if (!pc.getClassFilter().matches(targetClass)) {
-			return false;
+			return false; // 如果连类都不匹配，直接返回
 		}
+		// ---- 走到这里,所以至少类是匹配的,但是方法是否匹配就不一定了~
 
-		MethodMatcher methodMatcher = pc.getMethodMatcher();
+
+		MethodMatcher methodMatcher = pc.getMethodMatcher(); // 在这里获取的依旧是pointCut本身
+		// 如果当前切点表达式匹配的是所有的方法，那么直接返回true即可，那么当前 Advisor 肯定是 当前 bean 的 候选Advisor
+		// 这个很少使用
 		if (methodMatcher == MethodMatcher.TRUE) {
 			// No need to iterate the methods if we're matching any method anyway...
 			return true;
@@ -238,15 +248,37 @@ public abstract class AopUtils {
 			introductionAwareMethodMatcher = (IntroductionAwareMethodMatcher) methodMatcher;
 		}
 
+		// forcus 对代理类的处理,如果传入的类是代理类，那么还原出原始类
+		/*
+			是 JDK 代理类？($Proxy123)
+				是 → 跳过添加（没有自己的方法），接口会在第2部分添加
+			是 CGLIB 代理类？(包含 $$)
+				是 → getSuperclass() 返回父类（原始类）
+				因为代理类会生成很多方法，如果对这些方法都要进行校验的话，性能会下降(因为代理生成的方法是一定不会被匹配的)
+			是普通类？
+				直接返回自己
+		 */
 		Set<Class<?>> classes = new LinkedHashSet<>();
+		/*
+			处理非jdk代理的情况(这里又会有两种情况)
+				1. 普通类：直接加入到 classes 集合中即可
+				2. cglib代理类：获取其父类(也就是原始类)，加入到 classes 集合中
+		 */
 		if (!Proxy.isProxyClass(targetClass)) {
 			classes.add(ClassUtils.getUserClass(targetClass));
 		}
+		// 添加当前类所实现的所有接口class
 		classes.addAll(ClassUtils.getAllInterfacesForClassAsSet(targetClass));
-
+		// forcus 遍历方法匹配
+		// 依次处理每个class(包括当前class和其实现的接口class)
 		for (Class<?> clazz : classes) {
+			// forcus 获取当前clazz中的所有方法,比如[add(xxx),sub(xxx),...]
 			Method[] methods = ReflectionUtils.getAllDeclaredMethods(clazz);
+			// 依次处理每个方法
+			// forcus 需要注意的是,一旦有一个方法匹配上了，那么直接返回true，代表当前 Advisor 肯定是 当前 bean 的 候选Advisor
 			for (Method method : methods) {
+				// 虽然 introductionAwareMethodMatcher 这个不为null,但是传入的第三个参数 hasIntroductions是为false的
+				// 和 methodMatcher.matches(method, targetClass) 方法是一样的
 				if (introductionAwareMethodMatcher != null ?
 						introductionAwareMethodMatcher.matches(method, targetClass, hasIntroductions) :
 						methodMatcher.matches(method, targetClass)) {
@@ -281,12 +313,12 @@ public abstract class AopUtils {
 	 * @return whether the pointcut can apply on any method
 	 */
 	public static boolean canApply(Advisor advisor, Class<?> targetClass, boolean hasIntroductions) {
-		if (advisor instanceof IntroductionAdvisor) {
+		if (advisor instanceof IntroductionAdvisor) { // skip
 			return ((IntroductionAdvisor) advisor).getClassFilter().matches(targetClass);
 		}
 		else if (advisor instanceof PointcutAdvisor) {
 			PointcutAdvisor pca = (PointcutAdvisor) advisor;
-			return canApply(pca.getPointcut(), targetClass, hasIntroductions);
+			return canApply(pca.getPointcut(), targetClass, hasIntroductions); // forcus 在这里传入了 advisor 对应的 pointCut
 		}
 		else {
 			// It doesn't have a pointcut so we assume it applies.
@@ -309,18 +341,22 @@ public abstract class AopUtils {
 		}
 		// 存储可以应用到当前 bean 的 Advisor
 		List<Advisor> eligibleAdvisors = new ArrayList<>();
+
+		// 处理 IntroductionAdvisor (引入 -> 用于给目标类动态添加新的接口的)，很少使用，skip
 		for (Advisor candidate : candidateAdvisors) {
 			if (candidate instanceof IntroductionAdvisor && canApply(candidate, clazz)) {
 				eligibleAdvisors.add(candidate);
 			}
 		}
+		// 99.9% 的情况下为 false
 		boolean hasIntroductions = !eligibleAdvisors.isEmpty();
+		// forcus 遍历容器中的每个 Advisor , 判断是否可以应用到当前bean(也即是否有通知方法会作用到当前bean中的某个方法)
 		for (Advisor candidate : candidateAdvisors) {
 			if (candidate instanceof IntroductionAdvisor) {
 				// already processed
 				continue;
 			}
-			if (canApply(candidate, clazz, hasIntroductions)) {
+			if (canApply(candidate, clazz, hasIntroductions)) { // forcus 核心方法 - 第3个参数为false
 				eligibleAdvisors.add(candidate);
 			}
 		}

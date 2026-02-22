@@ -120,6 +120,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * (e.g. before and after advice) if the aspect involves more than a
 	 * single method (as will be the case for around advice).
 	 */
+	// forcus 用来存储当前线程对应的 TransactionInfo(也即上一个事务方法的 txInfo,可能为null)
 	private static final ThreadLocal<TransactionInfo> transactionInfoHolder =
 			new NamedThreadLocal<>("Current aspect-driven transaction");
 
@@ -332,15 +333,35 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @return the return value of the method, if any
 	 * @throws Throwable propagated from the target invocation
 	 */
+	// forcus 对于事务方法来说,只有这一个Advice,这里就是事务方法的起点
+	/*
+		method: 目标方法
+		targetClass:目标类（非代理类）
+		invocation:回调接口，封装了"继续执行拦截器链"的能力
+		forcus 虽然这个方法很长，但是是分为了3个分支的
+			1. 公共参数获取：txAddr,tm
+			2. 分支-1:响应式事务 - webflux
+			3. 分支-2：标注事务 - 绝大部分场景走这个分支 「在这里只关注这个场景」
+			4. 分支-3：回调式事务 - WebSphere 等特殊容器
+	 */
 	@Nullable
 	protected Object invokeWithinTransaction(Method method, @Nullable Class<?> targetClass,
 			final InvocationCallback invocation) throws Throwable {
 
 		// If the transaction attribute is null, the method is non-transactional.
+		// forcus-1 获取"PointCut"，用来解析类/方法/接口上的@Transaction注解的,当然通常是标注在方法上的 -- 在这里是 AnnotationTransactionAttributeSource
+		// 并且最终返回的就是 RuleBasedTransactionAttribute 对象
+		// 我们在@Transaction注解中配置的各种属性最终就被解析封装为这个对象 -- 也就是下面的 txAttr
 		TransactionAttributeSource tas = getTransactionAttributeSource();
 		final TransactionAttribute txAttr = (tas != null ? tas.getTransactionAttribute(method, targetClass) : null);
+		// forcus-2 三级查找策略：但是通常是最后一级,也即是按照类型从spring容器中获取，在这里是 DataSourceTransactionManager -- tm
 		final TransactionManager tm = determineTransactionManager(txAttr);
 
+		/*-----------
+				上面是公共参数准备,不管调用的是什么类型的传播行为对应的事务方法 都是一样的操作，分歧就在下面
+		 		但是目前只关系 REQUIRED 和 REQUIRED_NEW 的场景
+		 ------------*/
+		// 分支-1 Kotlin 协程 + WebFlux 响应式事务处理 skip
 		if (this.reactiveAdapterRegistry != null && tm instanceof ReactiveTransactionManager) {
 			boolean isSuspendingFunction = KotlinDetector.isSuspendingFunction(method);
 			boolean hasSuspendingFlowReturnType = isSuspendingFunction &&
@@ -374,28 +395,43 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 			return result;
 		}
 
+		/*------- forcus-3 普通事务分支 - 目前只关注这个 --------*/
+		// 安全类型转换
 		PlatformTransactionManager ptm = asPlatformTransactionManager(tm);
+		// 生成方法标识字符串，用于日志和事务名称，比如 "com.debug.aop_demo_tx_1.UserService.save"
 		final String joinpointIdentification = methodIdentification(method, targetClass, txAttr);
 
 		if (txAttr == null || !(ptm instanceof CallbackPreferringPlatformTransactionManager)) {
 			// Standard transaction demarcation with getTransaction and commit/rollback calls.
+			// forcus 核心是调用 ptm.getTransaction(txAttr) 开启事务，然后封装成 TransactionInfo 绑定到 ThreadLocal 栈
+			// forcus 目前只关系 REQUIRED 和 REQUIRED_NEW
 			TransactionInfo txInfo = createTransactionIfNecessary(ptm, txAttr, joinpointIdentification);
 
 			Object retVal;
 			try {
 				// This is an around advice: Invoke the next interceptor in the chain.
 				// This will normally result in a target object being invoked.
+				// forcus 继续调用拦截器链的下一个拦截器，在事务aop中只有一个(就是 TransactionInterceptor)
+				// 下一个就是目标方法了，比如save()
+				// 这里获取到的就是业务方法的返回值
 				retVal = invocation.proceedWithInvocation();
 			}
 			catch (Throwable ex) {
+				// forcus 调用业务方法出现了异常 - 前提是业务方法没有“吞掉”异常
 				// target invocation exception
 				completeTransactionAfterThrowing(txInfo, ex);
-				throw ex;
+				throw ex; // forcus 在这里会继续向上抛
 			}
 			finally {
+				// forcus 在finally代码块中,不管业务代码是 正常返回 / 抛异常 都一定会执行
+				/*
+					注意一点：这里的 cleanup 在 下面的 commitTransactionAfterReturning(txInfo) 之前，这合理吗？
+						- 合理，因为 commit 不依赖 transactionInfoHolder 这个 ThreadLocal，它直接使用 txInfo 局部变量。
+						在这里做的事情就是将 transactionInfoHolder 还原
+				 */
 				cleanupTransactionInfo(txInfo);
 			}
-
+			// 用于 Vavr ，暂时不关心
 			if (retVal != null && vavrPresent && VavrDelegate.isVavrTry(retVal)) {
 				// Set rollback-only in case of Vavr failure matching our rollback rules...
 				TransactionStatus status = txInfo.getTransactionStatus();
@@ -403,11 +439,11 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 					retVal = VavrDelegate.evaluateTryFailure(retVal, txAttr, status);
 				}
 			}
-
+			// forcus 提交(虽然是 commitxxx(),但是不一定是真正提交，是有可能会回滚的)
 			commitTransactionAfterReturning(txInfo);
 			return retVal;
 		}
-
+		// 分支-3 skip
 		else {
 			Object result;
 			final ThrowableHolder throwableHolder = new ThrowableHolder();
@@ -592,6 +628,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		TransactionStatus status = null;
 		if (txAttr != null) {
 			if (tm != null) {
+				// forcus 根据传播行为来判断是：开启新事务 还是 加入已有事务 还是 不用事务 还是 其他...
 				status = tm.getTransaction(txAttr);
 			}
 			else {
@@ -601,6 +638,8 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 				}
 			}
 		}
+
+		// forcus 创建 txInfo对象
 		return prepareTransactionInfo(tm, txAttr, joinpointIdentification, status);
 	}
 
@@ -615,14 +654,33 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	protected TransactionInfo prepareTransactionInfo(@Nullable PlatformTransactionManager tm,
 			@Nullable TransactionAttribute txAttr, String joinpointIdentification,
 			@Nullable TransactionStatus status) {
-
+		// forcus 创建 TransactionInfo 对象
+		/*
+			构造后的对象属性值：
+			{
+				transactionManager ：	DataSourceTransactionManager@xxx - 事务管理器
+				transactionAttribute ： DelegatingTransactionAttribute@xxx - 事务属性
+				joinpointIdentification ： String - 方法标识，用于日志
+				transactionStatus : null - 还没设置,在后续设置
+				oldTransactionInfo ： null - 在下面设置
+			}
+		 */
 		TransactionInfo txInfo = new TransactionInfo(tm, txAttr, joinpointIdentification);
+
+		/*
+			两个分支：根据 txAttr是否为 null 来决定是否设置 transactionStatus
+		 */
+
+		// forcus 对于事务方法来说 txAttr是不会为null的
 		if (txAttr != null) {
 			// We need a transaction for this method...
 			if (logger.isTraceEnabled()) {
 				logger.trace("Getting transaction for [" + txInfo.getJoinpointIdentification() + "]");
 			}
 			// The transaction manager will flag an error if an incompatible tx already exists.
+			// forcus 将 status 赋值到 info 中
+			// 后面通过：txInfo.hasTransaction() = transactionStatus != null = true
+			// 的意义：后续 commitTransactionAfterReturning() 和 completeTransactionAfterThrowing() 都会通过这个判断来决定是否执行提交/回滚
 			txInfo.newTransactionStatus(status);
 		}
 		else {
@@ -637,6 +695,8 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		// We always bind the TransactionInfo to the thread, even if we didn't create
 		// a new transaction here. This guarantees that the TransactionInfo stack
 		// will be managed correctly even if no transaction was created by this aspect.
+		// forcus 无论如何都入栈
+		// note : 无论是否创建了事务，都要绑定到线程
 		txInfo.bindToThread();
 		return txInfo;
 	}
@@ -647,10 +707,13 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @param txInfo information about the current transaction
 	 */
 	protected void commitTransactionAfterReturning(@Nullable TransactionInfo txInfo) {
+		// 这里除了 txInfo不应该为null，txInfo中的 txStatus都不应该为null
+		// 这里针对的是非事务方法中 txAttr == null 时未调用 newTransactionStatus()l,此时对应的是一个“空壳”方法，不需要commit()
 		if (txInfo != null && txInfo.getTransactionStatus() != null) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Completing transaction for [" + txInfo.getJoinpointIdentification() + "]");
 			}
+			// 通过事务管理器来提交 - AbstractPlatformTransactionManager.commit()
 			txInfo.getTransactionManager().commit(txInfo.getTransactionStatus());
 		}
 	}
@@ -662,13 +725,22 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @param ex throwable encountered
 	 */
 	protected void completeTransactionAfterThrowing(@Nullable TransactionInfo txInfo, Throwable ex) {
+		// forcus 必须是要事务方法(如果是非事务方法,那么当前方法相当于什么都不做，异常继续向上抛)
 		if (txInfo != null && txInfo.getTransactionStatus() != null) {
 			if (logger.isTraceEnabled()) {
 				logger.trace("Completing transaction for [" + txInfo.getJoinpointIdentification() +
 						"] after exception: " + ex);
 			}
+			// forcus 核心方法,根据异常的类型来决定异常是回滚还是继续提交 -- rollbackOn()「txAttr是@Transaction注解解析出来的属性对象,在这里不可能为null,防御性编程」
+			// 核心方法是 rollbackOn() -- 核心原理就是优先匹配子类(深度竞争算法)
+			/*
+				forcus 只有该方法匹配上了,也即返回true,才会进入到if分支中
+				在这里需要注意的一点是：如果任何一个异常都没有匹配到,那么默认的逻辑是,只会回滚 (ex instanceof RuntimeException || ex instanceof Error)
+				对于 checked exception (比如 IOException、SQLException )，那么默认是不会回滚的,而是提交!
+			 */
 			if (txInfo.transactionAttribute != null && txInfo.transactionAttribute.rollbackOn(ex)) {
 				try {
+					// forcus 真正的回滚
 					txInfo.getTransactionManager().rollback(txInfo.getTransactionStatus());
 				}
 				catch (TransactionSystemException ex2) {
@@ -706,6 +778,7 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 	 * @param txInfo information about the current transaction (may be {@code null})
 	 */
 	protected void cleanupTransactionInfo(@Nullable TransactionInfo txInfo) {
+		// txInfo都走到这里了，不可能为null,在这里是防御性编程
 		if (txInfo != null) {
 			txInfo.restoreThreadLocalStatus();
 		}
@@ -774,14 +847,16 @@ public abstract class TransactionAspectSupport implements BeanFactoryAware, Init
 		public boolean hasTransaction() {
 			return (this.transactionStatus != null);
 		}
-
+		// forcus 保存 txInfo
 		private void bindToThread() {
 			// Expose current TransactionStatus, preserving any existing TransactionStatus
 			// for restoration after this transaction is complete.
+			// 获取 旧事务方法对应的 txInfo(可能为null)，保存到当前事务对应的 txInfo中的 oldTransactionInfo (形成一个事务栈)
 			this.oldTransactionInfo = transactionInfoHolder.get();
+			// 绑定到对应的tl中
 			transactionInfoHolder.set(this);
 		}
-
+		// forcus 对应上面的 bindToThread()操作，在这里做的是相反的操作
 		private void restoreThreadLocalStatus() {
 			// Use stack to restore old transaction TransactionInfo.
 			// Will be null if none was set.

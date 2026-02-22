@@ -48,6 +48,11 @@ import org.springframework.util.Assert;
  * @since 09.04.2003
  * @see NoRollbackRuleAttribute
  */
+
+/*
+	RollbackRuleAttribute 代表一条回滚规则：当抛出某个异常时，事务应该回滚。
+	它对应 @Transactional 注解中的 rollbackFor 和 rollbackForClassName 属性
+ */
 @SuppressWarnings("serial")
 public class RollbackRuleAttribute implements Serializable{
 
@@ -63,6 +68,13 @@ public class RollbackRuleAttribute implements Serializable{
 	 * Could hold exception, resolving class name but would always require FQN.
 	 * This way does multiple string comparisons, but how often do we decide
 	 * whether to roll back a transaction following an exception?
+	 */
+	/*
+		final不可变，用字符串存储而非Class引用
+			作者Rod Johnson的设计考量：
+				用Class存储需要一定是全限定名（FQN），不灵活
+				用String可以支持部分匹配（如只写 "ServletException" 就能匹配 javax.servlet.ServletException）
+				事务回滚判断不会频繁发生（只在异常时），多次字符串比较的性能开销完全可以接受
 	 */
 	private final String exceptionPattern;
 
@@ -133,6 +145,7 @@ public class RollbackRuleAttribute implements Serializable{
 	 * will return a depth signifying a match at the corresponding level in the
 	 * class hierarchy as if there had been a direct match.
 	 */
+	// forcus 最核心的方法
 	public int getDepth(Throwable exception) {
 		return getDepth(exception.getClass(), 0);
 	}

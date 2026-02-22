@@ -151,11 +151,11 @@ public class ProxyConfig implements Serializable {
 	 */
 	public void copyFrom(ProxyConfig other) {
 		Assert.notNull(other, "Other ProxyConfig object must not be null");
-		this.proxyTargetClass = other.proxyTargetClass;
-		this.optimize = other.optimize;
-		this.exposeProxy = other.exposeProxy;
-		this.frozen = other.frozen;
-		this.opaque = other.opaque;
+		this.proxyTargetClass = other.proxyTargetClass; // 是否使用cglib代理目标对象
+		this.optimize = other.optimize; // 是否优化代理
+		this.exposeProxy = other.exposeProxy; // 是否暴露代理到 ThreadLocal 中
+		this.frozen = other.frozen; // 是否冻结配置
+		this.opaque = other.opaque; // 是否禁止访问 Advised 接口 (动态修改Advisor配置,业务代码中很少使用,暂时可以不关心)
 	}
 
 	@Override

@@ -98,11 +98,20 @@ public class ProxyCreatorSupport extends AdvisedSupport {
 	 * Subclasses should call this to get a new AOP proxy. They should <b>not</b>
 	 * create an AOP proxy with {@code this} as an argument.
 	 */
+	/*
+		创建代理对象，在这里只考虑 cglib代理的情况，创建的代理对象是 ObjenesisCglibAopProxy
+		 内部有几个非常重要的属性:
+		 	- AdvisedSupport advised: 这个就是之前创建的 proxyFactory对象(包含了代理的完整配置信息)
+		 	- AdvisedDispatcher advisedDispatcher
+		 	- Map<Method, Integer> fixedInterceptorMap：性能优化，避免每次方法调用都重新计算拦截器链 -- 但是缓存的value怎么是Integer类型的呢?
+		 	- private transient int fixedInterceptorOffset; 标记"固定拦截器"在callbacks数组中的起始位置
+		 	- private static final SpringObjenesis objenesis = new SpringObjenesis(); forcus 绕过构造函数创建对象实例
+	 */
 	protected final synchronized AopProxy createAopProxy() {
 		if (!this.active) {
 			activate();
 		}
-		return getAopProxyFactory().createAopProxy(this);
+		return getAopProxyFactory().createAopProxy(this); // 这里传入的 this 就是之前创建的 proxyFactory(包含了代理的完整配置信息)
 	}
 
 	/**

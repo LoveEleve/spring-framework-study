@@ -113,7 +113,7 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 
 	protected transient Log logger = LogFactory.getLog(getClass());
 
-	private int transactionSynchronization = SYNCHRONIZATION_ALWAYS;
+	private int transactionSynchronization = SYNCHRONIZATION_ALWAYS; // forcus 不管是否是事务方法,都会开启事务同步机制(也就是回调)
 
 	private int defaultTimeout = TransactionDefinition.TIMEOUT_DEFAULT;
 
@@ -343,33 +343,60 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 
 		// Use defaults if no transaction definition given.
 		TransactionDefinition def = (definition != null ? definition : TransactionDefinition.withDefaults());
-
+		// forcus - 1 由子类实现 -- DataSourceTransactionManager
+		/*
+			新事务第一次进来的时候：
+				connectionHolder -- null --  ThreadLocal 中没有已有连接
+				previousIsolationLevel -- null
+				readOnly -- false
+				savepointAllowed -- true -- 对于jdbc来说,默认是允许savepoint的
+				newConnectionHolder -- false -- 不是新连接
+				mustRestoreAutoCommit -- false
+			这里返回的是 DataSourceTransactionObject 对象
+		 */
 		Object transaction = doGetTransaction();
 		boolean debugEnabled = logger.isDebugEnabled();
-
+		// forcus - 2 由子类实现 -- DataSourceTransactionManager -- 用于判断当前是否有事务
+		// 对于第一次进来的事务方法这里返回的是false,也即REQUIRED事务方法第一次进来的时候就为false
+		// 但是当有内外层事务的区分的时候,这里就会返回true了
+		// forcus 当外层的REQUIRED事务方法 调用 内层的REQUIRED事务方法时，这里就会返回true了
+		// forcus 当外层的REQUIRED事务方法 调用 内层的REQUIRED_NEW事务方法时,同样也会返回true
 		if (isExistingTransaction(transaction)) {
 			// Existing transaction found -> check propagation behavior to find out how to behave.
 			return handleExistingTransaction(def, transaction, debugEnabled);
 		}
 
 		// Check definition settings for new transaction.
+		// 参数合理性校验
 		if (def.getTimeout() < TransactionDefinition.TIMEOUT_DEFAULT) {
 			throw new InvalidTimeoutException("Invalid transaction timeout", def.getTimeout());
 		}
 
 		// No existing transaction found -> check propagation behavior to find out how to proceed.
+		// 传播行为 = MANDATORY？MANDATORY 的语义是"必须在已有事务中执行，否则报错"。当前没有已有事务 → 抛异常(暂时不关心)
 		if (def.getPropagationBehavior() == TransactionDefinition.PROPAGATION_MANDATORY) {
 			throw new IllegalTransactionStateException(
 					"No existing transaction found for transaction marked with propagation 'mandatory'");
 		}
+		/*
+			forcus 3种传播属性共享同一个分支：
+			 	PROPAGATION_REQUIRED ：没有就创建新的 ✓
+			 	PROPAGATION_REQUIRES_NEW ： 没有也创建新的 ✓（跟 REQUIRED 在"无已有事务"场景下行为一样）
+			 	PROPAGATION_NESTED：没有也创建新的 ✓（因为没有外层事务，NESTED 退化为创建新事务）
+				在这里目前只关心 PROPAGATION_REQUIRED
+		 */
 		else if (def.getPropagationBehavior() == TransactionDefinition.PROPAGATION_REQUIRED ||
 				def.getPropagationBehavior() == TransactionDefinition.PROPAGATION_REQUIRES_NEW ||
 				def.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NESTED) {
+			// forcus suspend(null): 挂起“当前”事务，但是传入的参数为null
+			// 对于 PROPAGATION_REQUIRED 来说,这里什么也不做，返回的 suspendedResources = null
+			// 但是在 PROPAGATION_REQUIRES_NEW 则是会起作用的，后续单独分析
 			SuspendedResourcesHolder suspendedResources = suspend(null);
 			if (debugEnabled) {
 				logger.debug("Creating new transaction with name [" + def.getName() + "]: " + def);
 			}
 			try {
+				// forcus 创建事务的核心方法
 				return startTransaction(def, transaction, debugEnabled, suspendedResources);
 			}
 			catch (RuntimeException | Error ex) {
@@ -391,13 +418,60 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	/**
 	 * Start a new transaction.
 	 */
+	/*
+		REQUEST事务方法第一次进来的时候
+		transaction --> DataSourceTransactionObject
+		suspendedResources -- null
+	 */
 	private TransactionStatus startTransaction(TransactionDefinition definition, Object transaction,
 			boolean debugEnabled, @Nullable SuspendedResourcesHolder suspendedResources) {
-
+		// 默认所有情况下都为true,因为默认值为 SYNCHRONIZATION_ALWAYS
 		boolean newSynchronization = (getTransactionSynchronization() != SYNCHRONIZATION_NEVER);
+		// forcus 创建 DefaultTransactionStatus 对象
+		/*
+			{
+				this.transaction = transaction; // DataSourceTransactionObject -- 真正持有connectionHolder
+				this.newTransaction = newTransaction; // rue ← 这是一个新事务
+				this.newSynchronization = newSynchronization; // true ← 需要新初始化同步
+				this.readOnly = readOnly; // false
+				this.debug = debug;
+				this.suspendedResources = suspendedResources; // null（首次调用无挂起资源）
+			}
+		 */
 		DefaultTransactionStatus status = newTransactionStatus(
 				definition, transaction, true, newSynchronization, debugEnabled, suspendedResources);
+		// forcus 子类实现 -- 在这里真正的开启事务
+		/*
+			当执行完毕后，此时的结构为：
+				DataSourceTransactionObject
+				{
+					connectionHolder : ConnectionHolder@xxx
+					newConnectionHolder : true
+					previousIsolationLevel : null(未修改过隔离级别)
+					readOnly：false(与配置有关)
+					savepointAllowed：true(jdbc默认支持)
+					mustRestoreAutoCommit：true(代表修改过jdbc的autocommit)
+				}
+
+				ConnectionHolder
+				{
+					connectionHandle : 	SimpleConnectionHandle(con)
+					currentConnection : Connection@xxx
+					transactionActive : true
+					savepointsSupported : null
+					savepointCounter : 0
+					synchronizedWithTransaction : true
+					rollbackOnly : false
+					deadline : null (无超时)
+					referenceCount ： 0
+					isVoid ： false
+				}
+
+				TransactionSynchronizationManager ThreadLocal 状态
+				resources	{ DataSource → ConnectionHolder@xxx }
+		 */
 		doBegin(transaction, definition);
+		// forcus 设置 TSM 剩余的 5 个 ThreadLocal
 		prepareSynchronization(status, definition);
 		return status;
 	}
@@ -408,12 +482,17 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	private TransactionStatus handleExistingTransaction(
 			TransactionDefinition definition, Object transaction, boolean debugEnabled)
 			throws TransactionException {
+		/*
+			在这里目前只关系 REQUIRED 和 REQUIRED_NEW 类型的传播行为
+			而对于 NEVER / NOT_SUPPORTED/ NESTED 则暂时不了解 skip
+		 */
 
+		// PROPAGATION_NEVER  skip
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NEVER) {
 			throw new IllegalTransactionStateException(
 					"Existing transaction found for transaction marked with propagation 'never'");
 		}
-
+		// PROPAGATION_NOT_SUPPORTED skip
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NOT_SUPPORTED) {
 			if (debugEnabled) {
 				logger.debug("Suspending current transaction");
@@ -423,22 +502,25 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 			return prepareTransactionStatus(
 					definition, null, false, newSynchronization, debugEnabled, suspendedResources);
 		}
-
+		// forcus PROPAGATION_REQUIRES_NEW 类型的，后面单独分析，在这里先跳过
+		// forcus REQUEST_NEW 类型的
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_REQUIRES_NEW) {
 			if (debugEnabled) {
 				logger.debug("Suspending current transaction, creating new transaction with name [" +
 						definition.getName() + "]");
 			}
+			// forcus-1 挂起外层事务 - 本质上就是将 TMS中的6个 threadlocal 使用 SuspendedResourcesHolder 来保存
 			SuspendedResourcesHolder suspendedResources = suspend(transaction);
 			try {
+				// 注意哦,这里的 suspendedResources 属性可是不为null的哦
 				return startTransaction(definition, transaction, debugEnabled, suspendedResources);
 			}
 			catch (RuntimeException | Error beginEx) {
-				resumeAfterBeginException(transaction, suspendedResources, beginEx);
+				resumeAfterBeginException(transaction, suspendedResources, beginEx); // 失败则恢复外层事务
 				throw beginEx;
 			}
 		}
-
+		// PROPAGATION_NESTED skip
 		if (definition.getPropagationBehavior() == TransactionDefinition.PROPAGATION_NESTED) {
 			if (!isNestedTransactionAllowed()) {
 				throw new NestedTransactionNotSupportedException(
@@ -470,6 +552,12 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 		if (debugEnabled) {
 			logger.debug("Participating in existing transaction");
 		}
+
+		/*----------- 能走到这里的只有3种传播行为：REQUIRED / SUPPORTS / MANDATORY (但是目前只关心REQUIRED传播行为)----------*/
+
+		// 该判断默认为false,skip
+		// 这意味着,内层事务指定的隔离级别和readOnly属性默认是不生效的,由外层事务设置的为准
+		// 并且即使两者设置的不一样，spring的默认处理为忽略，而不是抛出异常(对用户友好)
 		if (isValidateExistingTransaction()) {
 			if (definition.getIsolationLevel() != TransactionDefinition.ISOLATION_DEFAULT) {
 				Integer currentIsolationLevel = TransactionSynchronizationManager.getCurrentTransactionIsolationLevel();
@@ -489,7 +577,9 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 				}
 			}
 		}
+		// getTransactionSynchronization() 默认返回的是 SYNCHRONIZATION_ALWAYS，但是这不意味着 prepareSynchronization() 会重新初始化 ThreadLocal
 		boolean newSynchronization = (getTransactionSynchronization() != SYNCHRONIZATION_NEVER);
+		// forcus 准备一个新的 txStatus
 		return prepareTransactionStatus(definition, transaction, false, newSynchronization, debugEnabled, null);
 	}
 
@@ -498,6 +588,11 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 * also initializing transaction synchronization as appropriate.
 	 * @see #newTransactionStatus
 	 * @see #prepareTransactionStatus
+	 */
+	/*
+			transaction: 新的 DataSourceTransactionObject 对象(持有和外层事务对象一样Connection)
+			newTransaction: false(内层事务方法不会创建新事务 - 不是新连接)
+			newSynchronization：true - 虽然为true,但是并不会生效
 	 */
 	protected final DefaultTransactionStatus prepareTransactionStatus(
 			TransactionDefinition definition, @Nullable Object transaction, boolean newTransaction,
@@ -515,9 +610,21 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	protected DefaultTransactionStatus newTransactionStatus(
 			TransactionDefinition definition, @Nullable Object transaction, boolean newTransaction,
 			boolean newSynchronization, boolean debug, @Nullable Object suspendedResources) {
-
+		/*
+			forcus 虽然 newSynchronization = true，但是 TransactionSynchronizationManager.isSynchronizationActive() = true(因为外层事务方法已经初始化过了)
+			所以 actualNewSynchronization = false
+		 */
 		boolean actualNewSynchronization = newSynchronization &&
 				!TransactionSynchronizationManager.isSynchronizationActive();
+		/*
+			创建出来的 DefaultTransactionStatus 对象内部属性：
+			{
+				...
+				newTransaction : false(当前不是一个新事务)
+				newSynchronization：不重新初始化同步
+				...
+			}
+		 */
 		return new DefaultTransactionStatus(
 				transaction, newTransaction, actualNewSynchronization,
 				definition.isReadOnly(), debug, suspendedResources);
@@ -528,12 +635,17 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 */
 	protected void prepareSynchronization(DefaultTransactionStatus status, TransactionDefinition definition) {
 		if (status.isNewSynchronization()) {
+			// forcus-1 标记当前线程上有真实的数据库事务在活跃运行
 			TransactionSynchronizationManager.setActualTransactionActive(status.hasTransaction());
+			// forcus-2 存储当前事务的隔离级别，如果业务代码中有配置隔离级别，那么设置进去，否则设置为null(代表用户没有自定义隔离级别) 「并不代表没有隔离级别，而是使用db默认的」
 			TransactionSynchronizationManager.setCurrentTransactionIsolationLevel(
 					definition.getIsolationLevel() != TransactionDefinition.ISOLATION_DEFAULT ?
 							definition.getIsolationLevel() : null);
+			// forcus-3 存储当前事务的只读属性(如果用户没有配置，那么默认存储null)
 			TransactionSynchronizationManager.setCurrentTransactionReadOnly(definition.isReadOnly());
+			// forcus-4 存储方法标识 - eg:"com.debug.aop_demo_tx_1.UserService.save"
 			TransactionSynchronizationManager.setCurrentTransactionName(definition.getName());
+			// forcus-5 初始化事务同步回调机制，创建一个空的 LinkedHashSet，存储到对应的threadlocal中
 			TransactionSynchronizationManager.initSynchronization();
 		}
 	}
@@ -567,13 +679,23 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 */
 	@Nullable
 	protected final SuspendedResourcesHolder suspend(@Nullable Object transaction) throws TransactionException {
+		// forcus 外层事务已经开启同步了
 		if (TransactionSynchronizationManager.isSynchronizationActive()) {
+			// forcus-1 首先挂起同步回调对应的threadLocal
+			// 因为 synchronizations 这个 ThreadLocal remove 掉了。此后 isSynchronizationActive() = false
 			List<TransactionSynchronization> suspendedSynchronizations = doSuspendSynchronization();
 			try {
 				Object suspendedResources = null;
+				// 防御性编程,是不可能为null的
 				if (transaction != null) {
+					// forcus-2 解绑 txObject 绑定的 connectionHolder(之前绑定的还是外层事务的connectionHolder)
+					// 这个 suspendedResources 就是 dataSource -> connectionHolder 的 Map
 					suspendedResources = doSuspend(transaction);
 				}
+				/*
+					上面已经有了 TMS 中的 2个 threadLocal
+					下面就是获取另外的4个threadLocal,然后保存到 SuspendedResourcesHolder 对象中（这个对象就是外层事务属性的容器）
+				 */
 				String name = TransactionSynchronizationManager.getCurrentTransactionName();
 				TransactionSynchronizationManager.setCurrentTransactionName(null);
 				boolean readOnly = TransactionSynchronizationManager.isCurrentTransactionReadOnly();
@@ -653,12 +775,14 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 * @return the List of suspended TransactionSynchronization objects
 	 */
 	private List<TransactionSynchronization> doSuspendSynchronization() {
+		// 获取排序快照
 		List<TransactionSynchronization> suspendedSynchronizations =
 				TransactionSynchronizationManager.getSynchronizations();
+		// forcus 回调每个通知器的suspend()方法
 		for (TransactionSynchronization synchronization : suspendedSynchronizations) {
 			synchronization.suspend();
 		}
-		TransactionSynchronizationManager.clearSynchronization();
+		TransactionSynchronizationManager.clearSynchronization(); // 移除
 		return suspendedSynchronizations;
 	}
 
@@ -685,30 +809,47 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 * @see #doCommit
 	 * @see #rollback
 	 */
+	// forcus 事务提交的核心方法
 	@Override
 	public final void commit(TransactionStatus status) throws TransactionException {
+		// 防止事务重复提交 - 当事务commit()或者rollback()之后会调用 status.setCompleted() 标记为已完成
+		// 再次调用则直接抛出异常
 		if (status.isCompleted()) {
 			throw new IllegalTransactionStateException(
 					"Transaction is already completed - do not call commit or rollback more than once per transaction");
 		}
 
 		DefaultTransactionStatus defStatus = (DefaultTransactionStatus) status;
+		/*
+			forcus 本地回滚标记
+			这里是谁的 rollbackOnly 标记？ status的，是事务方法隔离的
+			那是谁设置的呢？是用户在业务代码中主动通过 TransactionAspectSupport.currentTransactionStatus().setRollbackOnly() 设置的
+			如果被标记了，那么不提交，转为回滚操作
+		 */
 		if (defStatus.isLocalRollbackOnly()) {
 			if (defStatus.isDebug()) {
 				logger.debug("Transactional code has requested rollback");
 			}
-			processRollback(defStatus, false);
+			processRollback(defStatus, false); // forcus 本地回滚(当前事务方法出现异常) - 回滚
 			return;
 		}
 
+		/*
+			否则如果本事务方法是正常的,但是在事务方法中又去调用了别的事务方法,并且抛出了异常（这是spring自动设置的 -- 后面会讲到）
+			 1. !shouldCommitOnGlobalRollbackOnly() ： 这个默认返回false,所以 !false = true
+			 2. defStatus.isGlobalRollbackOnly():这里则是通过下面这段代码来判断的 -- 也即 connection
+			 		public boolean isRollbackOnly() {
+						return getConnectionHolder().isRollbackOnly();
+					}
+		 */
 		if (!shouldCommitOnGlobalRollbackOnly() && defStatus.isGlobalRollbackOnly()) {
 			if (defStatus.isDebug()) {
 				logger.debug("Global transaction is marked as rollback-only but transactional code requested commit");
 			}
-			processRollback(defStatus, true);
+			processRollback(defStatus, true); // forcus 全局回滚(当前事务方法正常,但是嵌套的事务方法调用失败了,抛出了异常)
 			return;
 		}
-
+		// forcus 一切正常,准备提交事务
 		processCommit(defStatus);
 	}
 
@@ -720,15 +861,23 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 */
 	private void processCommit(DefaultTransactionStatus status) throws TransactionException {
 		try {
+			// 记录 triggerBeforeCompletion() 是否已经被调用过了。
+			// 因为在某些异常场景下，需要补触发一次 beforeCompletion，但不能重复触发。
 			boolean beforeCompletionInvoked = false;
 
 			try {
+				// forcus 用于检测：提交时是否发现了"全局回滚标记"
 				boolean unexpectedRollback = false;
-				prepareForCommit(status);
+				prepareForCommit(status); // forcus 空方法,子类可覆盖
+				// forcus 触发 TransactionSynchronization.beforeCommit() 「循环处理 synchronizations 中的每个元素,调用它们的beforeCommit()方法」
+				// 该方法没有“吃掉”异常,任何一个回调函数都可能触发回滚
 				triggerBeforeCommit(status);
+				// forcus 同上，但是这次调用的则是 beforeCompletion()方法
+				// 但是需要注意的是，该方法是会吃掉异常的，只打印error日志,不会影响后续事务的提交
 				triggerBeforeCompletion(status);
+				// 标记两个before回调都已经执行了
 				beforeCompletionInvoked = true;
-
+				// 暂时不关心savepoint机制(skip)
 				if (status.hasSavepoint()) {
 					if (status.isDebug()) {
 						logger.debug("Releasing transaction savepoint");
@@ -736,43 +885,59 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 					unexpectedRollback = status.isGlobalRollbackOnly();
 					status.releaseHeldSavepoint();
 				}
+				// forcus 当前事务方法对应着一个新事务
 				else if (status.isNewTransaction()) {
 					if (status.isDebug()) {
 						logger.debug("Initiating transaction commit");
 					}
+					// forcus 在真正提交之前,必须检查全局回滚标记
 					unexpectedRollback = status.isGlobalRollbackOnly();
-					doCommit(status);
+					doCommit(status); // forcus 真正提交
 				}
+				// 默认false,这个分支不需要关心
 				else if (isFailEarlyOnGlobalRollbackOnly()) {
 					unexpectedRollback = status.isGlobalRollbackOnly();
 				}
 
 				// Throw UnexpectedRollbackException if we have a global rollback-only
 				// marker but still didn't get a corresponding exception from commit.
+				// 如果在事务真正提交之前，就判断出了有内部事务方法抛出了异常
+				// 那么选择抛出异常，防止了"数据库静默回滚但应用层不知道"的问题
 				if (unexpectedRollback) {
 					throw new UnexpectedRollbackException(
 							"Transaction silently rolled back because it has been marked as rollback-only");
 				}
 			}
+			// forcus-1 在上面通过 unexpectedRollback = true 主动抛出的，事务状态确定是 ROLLED_BACK → 回调传 STATUS_ROLLED_BACK
+			// 重新抛出异常,通知调用者(注意此时传入的是 STATUS_ROLLED_BACK )
 			catch (UnexpectedRollbackException ex) {
 				// can only be caused by doCommit
 				triggerAfterCompletion(status, TransactionSynchronization.STATUS_ROLLED_BACK);
 				throw ex;
 			}
+			// forcus-2 在 doCommit() 中 con.commit() 失败（如数据库连接断了），被包装为 TransactionSystemException
 			catch (TransactionException ex) {
 				// can only be caused by doCommit
+				// isRollbackOnCommitFailure()，这个默认为false
 				if (isRollbackOnCommitFailure()) {
 					doRollbackOnCommitException(status, ex);
 				}
+				// forcus 默认是走这个 else 分支的 (这个默认传入的是STATUS_UNKNOWN)
+				// 也即事务提交失败了，但是不确定db那边的实际状态
 				else {
 					triggerAfterCompletion(status, TransactionSynchronization.STATUS_UNKNOWN);
 				}
 				throw ex;
 			}
+			// forcus prepareForCommit()、triggerBeforeCommit() 抛异常，
+			//  或 doCommit() 抛非 TransactionException 的运行时异常
 			catch (RuntimeException | Error ex) {
+				// 如果异常发生在 triggerBeforeCompletion() 之前（比如 prepareForCommit() 或 triggerBeforeCommit() 抛异常）
+				// 那么在这里重新补救触发一次 triggerBeforeCompletion() 回调 (避免资源释放失败)
 				if (!beforeCompletionInvoked) {
 					triggerBeforeCompletion(status);
 				}
+				// forcus 回滚
 				doRollbackOnCommitException(status, ex);
 				throw ex;
 			}
@@ -780,14 +945,19 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 			// Trigger afterCommit callbacks, with an exception thrown there
 			// propagated to callers but the transaction still considered as committed.
 			try {
+				// forcus 事务提交后的回调 --  afterCommit()
+				// forcus @TransactionalEventListener(phase = AFTER_COMMIT) 在这里执行(比如发送MQ消息)
+				// 因为事务已经提交了,所以即使这里的回调方法抛出了异常,也不会导致事务回滚
 				triggerAfterCommit(status);
 			}
 			finally {
+				// forcus afterCompletion()回调
 				triggerAfterCompletion(status, TransactionSynchronization.STATUS_COMMITTED);
 			}
 
 		}
 		finally {
+			// forcus 最后的清理
 			cleanupAfterCompletion(status);
 		}
 	}
@@ -807,6 +977,7 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 		}
 
 		DefaultTransactionStatus defStatus = (DefaultTransactionStatus) status;
+		// forcus 回滚
 		processRollback(defStatus, false);
 	}
 
@@ -818,30 +989,41 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 */
 	private void processRollback(DefaultTransactionStatus status, boolean unexpected) {
 		try {
+			// 保存参数值(后面修改的是参数值,不影响方法参数语义)
 			boolean unexpectedRollback = unexpected;
 
 			try {
+				// forcus-1 前置回调 - 同样对于内层事务方法是不会触发的(因为回调的语言是事务完成前 - 包括提交或回滚)
 				triggerBeforeCompletion(status);
-
+				// savepoint - 暂时不关心 - skip
 				if (status.hasSavepoint()) {
 					if (status.isDebug()) {
 						logger.debug("Rolling back transaction to savepoint");
 					}
 					status.rollbackToHeldSavepoint();
 				}
+				// forcus 真正的事务“发起者”才有权利回滚事务
 				else if (status.isNewTransaction()) {
 					if (status.isDebug()) {
 						logger.debug("Initiating transaction rollback");
 					}
-					doRollback(status);
+					doRollback(status); // forcus 真正回滚事务的地方
 				}
+				// forcus 事务参与者(内层事务)
 				else {
 					// Participating in larger transaction
-					if (status.hasTransaction()) {
+					if (status.hasTransaction()) { // 正常情况下,内层事务方法一定有的，也即一定为true
+						/*
+							满足其中一个条件都会打全局标记：
+								1. 内层事务方法抛出异常了，并且用户在业务代码中主动调用了 TransactionStatus.setRollbackOnly()
+								2. isGlobalRollbackOnParticipationFailure() ： 参与者失败时是否标记全局回滚,默认为true
+								所以当内层事务方法抛出异常时(前提是用户自己没有"吞掉异常")，几乎是100%进入到这个方法中的
+						 */
 						if (status.isLocalRollbackOnly() || isGlobalRollbackOnParticipationFailure()) {
 							if (status.isDebug()) {
 								logger.debug("Participating transaction failed - marking existing transaction as rollback-only");
 							}
+							// forcus 打全局回滚标记
 							doSetRollbackOnly(status);
 						}
 						else {
@@ -946,7 +1128,10 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	private void triggerAfterCompletion(DefaultTransactionStatus status, int completionStatus) {
 		if (status.isNewSynchronization()) {
 			List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
+			// forcus 清除 ThreadLocal 中的 synchronizations（此后 isSynchronizationActive() = false）
 			TransactionSynchronizationManager.clearSynchronization();
+			// forcus 必须是新事务方法才能执行这个最后的回调方法(因为这是事务提交后的回调)
+			// 内层事务是无法提交的
 			if (!status.hasTransaction() || status.isNewTransaction()) {
 				// No transaction or new transaction for the current scope ->
 				// invoke the afterCompletion callbacks immediately
@@ -985,18 +1170,20 @@ public abstract class AbstractPlatformTransactionManager implements PlatformTran
 	 * @see #doCleanupAfterCompletion
 	 */
 	private void cleanupAfterCompletion(DefaultTransactionStatus status) {
+		// 标识事务已经完成(已经完成代表的可能是成功也可能是失败)
 		status.setCompleted();
 		if (status.isNewSynchronization()) {
-			TransactionSynchronizationManager.clear();
+			TransactionSynchronizationManager.clear(); // 清理5个threadlocal
 		}
 		if (status.isNewTransaction()) {
-			doCleanupAfterCompletion(status.getTransaction());
+			doCleanupAfterCompletion(status.getTransaction()); // forcus 恢复Connection + 释放连接
 		}
 		if (status.getSuspendedResources() != null) {
 			if (status.isDebug()) {
 				logger.debug("Resuming suspended transaction after completion of inner transaction");
 			}
 			Object transaction = (status.hasTransaction() ? status.getTransaction() : null);
+			// forcus 恢复挂起的外层事务
 			resume(transaction, (SuspendedResourcesHolder) status.getSuspendedResources());
 		}
 	}

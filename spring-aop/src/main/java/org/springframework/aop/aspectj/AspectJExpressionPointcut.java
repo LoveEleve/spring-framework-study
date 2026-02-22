@@ -332,6 +332,11 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 
 		try {
 			try {
+				/*
+					forcus 到这里就不是spring的代码了
+					但是核心逻辑就是：判断一个类(targetClass)是否匹配一个切点表达式，返回 maybe / yes / no
+
+				 */
 				return obtainPointcutExpression().couldMatchJoinPointsInType(targetClass);
 			}
 			catch (ReflectionWorldException ex) {
@@ -354,9 +359,21 @@ public class AspectJExpressionPointcut extends AbstractExpressionPointcut
 		}
 		return false;
 	}
-
+	// forcus 判断方法是否匹配? 只考虑第3个参数为false的情况
+	/*
+		method:要检查的方法
+		targetClass:目标类
+		hasIntroductions: “引入”相关，只考虑为false的情况，skip
+	 */
 	@Override
 	public boolean matches(Method method, Class<?> targetClass, boolean hasIntroductions) {
+		// ShadowMatch 代表的是：一个方法是否匹配切点表达式(是一个结果)
+		/*
+			可能的结果: 只需要关注前面两个分支，第三个else分支不需要关注
+				alwaysMatches() - YES
+				neverMatches() - NO
+				maybeMatches() - MAYBE - 在实际中很少使用到运行时参数,所以一般不会为这个 skip
+		 */
 		ShadowMatch shadowMatch = getTargetShadowMatch(method, targetClass);
 
 		// Special handling for this, target, @this, @target, @annotation

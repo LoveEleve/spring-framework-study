@@ -22,4 +22,7 @@ dependencies {
     
     // H2数据库（用于事务演示）
     implementation "com.h2database:h2:1.4.200"
+    
+    // MySQL驱动（用于事务源码学习）
+    implementation "mysql:mysql-connector-java:8.0.30"
 }

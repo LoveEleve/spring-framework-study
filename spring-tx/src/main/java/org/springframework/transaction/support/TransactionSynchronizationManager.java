@@ -138,6 +138,7 @@ public abstract class TransactionSynchronizationManager {
 	/**
 	 * Actually check the value of the resource that is bound for the given key.
 	 */
+	// forcus 从 ThreadLocal<Map<Object, Object>> resources = new NamedThreadLocal<>("Transactional resources"); 获取资源，但是第一次进来的时候是为null的
 	@Nullable
 	private static Object doGetResource(Object actualKey) {
 		Map<Object, Object> map = resources.get();
@@ -167,13 +168,20 @@ public abstract class TransactionSynchronizationManager {
 	public static void bindResource(Object key, Object value) throws IllegalStateException {
 		Object actualKey = TransactionSynchronizationUtils.unwrapResourceIfNecessary(key);
 		Assert.notNull(value, "Value must not be null");
+		/*
+			获取当前线程对应的 Map<Object, Object> map
+				key = xxxDataSource
+				value: connectionHolder
+			但是第一次进来的时候都是为null的
+		 */
 		Map<Object, Object> map = resources.get();
 		// set ThreadLocal Map if none found
+		// 如果为null，那么就在这里初始化
 		if (map == null) {
 			map = new HashMap<>();
 			resources.set(map);
 		}
-		Object oldValue = map.put(actualKey, value);
+		Object oldValue = map.put(actualKey, value); // 放进去
 		// Transparently suppress a ResourceHolder that was marked as void...
 		if (oldValue instanceof ResourceHolder && ((ResourceHolder) oldValue).isVoid()) {
 			oldValue = null;
@@ -192,7 +200,9 @@ public abstract class TransactionSynchronizationManager {
 	 * @see ResourceTransactionManager#getResourceFactory()
 	 */
 	public static Object unbindResource(Object key) throws IllegalStateException {
+		// 这里的 actualKey 其实就是 DataSource
 		Object actualKey = TransactionSynchronizationUtils.unwrapResourceIfNecessary(key);
+		// forcus 移除 dataSource -> connectuonHolder
 		Object value = doUnbindResource(actualKey);
 		if (value == null) {
 			throw new IllegalStateException("No value for key [" + actualKey + "] bound to thread");
