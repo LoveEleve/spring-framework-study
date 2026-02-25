@@ -184,8 +184,9 @@ public abstract class ExecutorConfigurationSupport extends CustomizableThreadFac
 			logger.debug("Initializing ExecutorService" + (this.beanName != null ? " '" + this.beanName + "'" : ""));
 		}
 		if (!this.threadNamePrefixSet && this.beanName != null) {
-			setThreadNamePrefix(this.beanName + "-");
+			setThreadNamePrefix(this.beanName + "-"); // forcus 如果没有设置线程名前缀,那么默认使用线程池对应的beanName
 		}
+		// forcus 初始化线程池
 		this.executor = initializeExecutor(this.threadFactory, this.rejectedExecutionHandler);
 	}
 
@@ -219,19 +220,40 @@ public abstract class ExecutorConfigurationSupport extends CustomizableThreadFac
 	 * @see java.util.concurrent.ExecutorService#shutdownNow()
 	 * @see java.util.concurrent.ExecutorService#awaitTermination
 	 */
+	// forcus 优雅停机 - 这个方法是在线程池bean被销毁时触发 - 也就是在spring容器关闭时自动调用destroy()->shutdown()
+	/*
+		什么是优雅停机?
+			应用关闭时（如 Kubernetes 滚动更新、手动重启），线程池中可能有：
+				正在执行的任务（线程正在 run）
+				队列中排队的任务（还没开始执行）
+				- 不优雅：直接杀进程，任务执行到一半被中断，数据不一致。
+				- 优雅：等正在执行的任务完成，队列中的任务也执行完（或有序取消），然后再关闭。
+				在这里涉及到了两个关键配置：
+					1. waitForTasksToCompleteOnShutdown：是否等待任务完成(	控制调用 shutdown() 还是 shutdownNow())
+					2. awaitTerminationMillis：等待任务完成的最大时间(关闭后阻塞等待多久)
+	 */
 	public void shutdown() {
 		if (logger.isDebugEnabled()) {
 			logger.debug("Shutting down ExecutorService" + (this.beanName != null ? " '" + this.beanName + "'" : ""));
 		}
 		if (this.executor != null) {
+			//  如果开启了waitForTasksToCompleteOnShutdown，那么调用shutdown()
 			if (this.waitForTasksToCompleteOnShutdown) {
 				this.executor.shutdown();
 			}
+			/*
+				否则调用shutdownNow(),关于shutdownNow()之前在线程池文章中也讲解过：其特点为
+					1. 不再接受新任务
+					2. 中断所有正在执行的线程（发 interrupt 信号）
+					3. 清空队列，把队列中未执行的任务作为 List 返回
+				然后在这里依次处理每个任务，逐个取消
+			 */
 			else {
 				for (Runnable remainingTask : this.executor.shutdownNow()) {
 					cancelRemainingTask(remainingTask);
 				}
 			}
+			// forcus 最终都要执行这个方法
 			awaitTerminationIfNecessary(this.executor);
 		}
 	}
@@ -255,9 +277,25 @@ public abstract class ExecutorConfigurationSupport extends CustomizableThreadFac
 	 * {@link #setAwaitTerminationSeconds "awaitTerminationSeconds"} property.
 	 */
 	private void awaitTerminationIfNecessary(ExecutorService executor) {
+		// 这里的 awaitTerminationMillis 必须要 > 0
 		if (this.awaitTerminationMillis > 0) {
 			try {
+				// forcus 这里的 awaitTermination() 是jdk线程池的方法，阻塞当前线程（执行 shutdown 的线程），等待线程池中所有任务执行完毕，最多等指定时间。
+				/*
+					任务全部完成 → 返回 true，正常关闭
+					超时 → 返回 false，打 warn 日志，但不会强制关闭！
+					被中断 → catch 后恢复中断标志 Thread.currentThread().interrupt()
+					---
+					但是默认的行为：
+						waitForTasksToCompleteOnShutdown = false    // 强制关闭
+						awaitTerminationMillis = 0                   // 不等待
+					 		-- 容器关闭 → shutdownNow() 中断所有线程 → 不等待 → 直接继续销毁其他 Bean
+					这里有个坑：只设 waitForTasks 不设 awaitTermination
+						调 shutdown() 后不阻塞等待！ 容器立刻继续销毁其他 Bean（数据库连接池、Redis 连接等）。
+						如果异步任务还在执行中依赖这些资源——资源已经被销毁了，任务报错。
+				 */
 				if (!executor.awaitTermination(this.awaitTerminationMillis, TimeUnit.MILLISECONDS)) {
+					// 如果超时了，在这里只是打印warn日志，没有进一步强制关闭。线程池中的任务还会继续跑（因为调的是 shutdown() 不是 shutdownNow()），但容器不再等了，继续销毁其他 Bean。
 					if (logger.isWarnEnabled()) {
 						logger.warn("Timed out while waiting for executor" +
 								(this.beanName != null ? " '" + this.beanName + "'" : "") + " to terminate");

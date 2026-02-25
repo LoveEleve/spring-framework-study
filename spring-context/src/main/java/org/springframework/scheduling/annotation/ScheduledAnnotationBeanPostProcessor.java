@@ -240,24 +240,27 @@ public class ScheduledAnnotationBeanPostProcessor
 	}
 
 	private void finishRegistration() {
+		// forcus-1 显式设置
 		if (this.scheduler != null) {
 			this.registrar.setScheduler(this.scheduler);
 		}
 
 		if (this.beanFactory instanceof ListableBeanFactory) {
+			// forcus-2 SchedulingConfigurer 回调
 			Map<String, SchedulingConfigurer> beans =
 					((ListableBeanFactory) this.beanFactory).getBeansOfType(SchedulingConfigurer.class);
 			List<SchedulingConfigurer> configurers = new ArrayList<>(beans.values());
 			AnnotationAwareOrderComparator.sort(configurers);
 			for (SchedulingConfigurer configurer : configurers) {
-				configurer.configureTasks(this.registrar);
+				configurer.configureTasks(this.registrar); // forcus  用户可在这里设置 scheduler 以及 手动注册任务
 			}
 		}
-
+		// forcus-3 从容器中自动查找（前提：有任务 && 还没有 scheduler）
 		if (this.registrar.hasTasks() && this.registrar.getScheduler() == null) {
 			Assert.state(this.beanFactory != null, "BeanFactory must be set to find scheduler by type");
 			try {
 				// Search for TaskScheduler bean...
+				// forcus  按类型找 TaskScheduler
 				this.registrar.setTaskScheduler(resolveSchedulerBean(this.beanFactory, TaskScheduler.class, false));
 			}
 			catch (NoUniqueBeanDefinitionException ex) {
@@ -266,6 +269,7 @@ public class ScheduledAnnotationBeanPostProcessor
 							ex.getMessage());
 				}
 				try {
+					// forcus 找到多个 → 按名称 "taskScheduler" 找
 					this.registrar.setTaskScheduler(resolveSchedulerBean(this.beanFactory, TaskScheduler.class, true));
 				}
 				catch (NoSuchBeanDefinitionException ex2) {
@@ -285,6 +289,7 @@ public class ScheduledAnnotationBeanPostProcessor
 				}
 				// Search for ScheduledExecutorService bean next...
 				try {
+					// forcus 没有 → 降级找 ScheduledExecutorService
 					this.registrar.setScheduler(resolveSchedulerBean(this.beanFactory, ScheduledExecutorService.class, false));
 				}
 				catch (NoUniqueBeanDefinitionException ex2) {
@@ -315,7 +320,7 @@ public class ScheduledAnnotationBeanPostProcessor
 				}
 			}
 		}
-
+		// forcus 兜底（在 scheduleTasks() 中）
 		this.registrar.afterPropertiesSet();
 	}
 
@@ -352,27 +357,59 @@ public class ScheduledAnnotationBeanPostProcessor
 
 	@Override
 	public Object postProcessAfterInitialization(Object bean, String beanName) {
+		/*
+			forcus 跳过基础设施bean,在这里有3种类型
+				1. AopInfrastructureBean：AOP 基础设施，不是业务 Bean，不可能有 @Scheduled
+				2. TaskScheduler:它是调度器本身，不是被调度的任务。如果不跳过，调度器 Bean 初始化时会被扫描，浪费资源
+				3. ScheduledExecutorService: 同上，JDK 层面的调度器，不可能有 @Scheduled
+
+		 */
 		if (bean instanceof AopInfrastructureBean || bean instanceof TaskScheduler ||
 				bean instanceof ScheduledExecutorService) {
 			// Ignore AOP infrastructure such as scoped proxies.
 			return bean;
 		}
-
+		// 穿透代理,获取真实类,因为@Scheduled注解是加在原始类上的,而不是代理类
 		Class<?> targetClass = AopProxyUtils.ultimateTargetClass(bean);
+		/*
+			两层判断：
+				1. nonAnnotatedClasses:这个是用来缓存没有@Scheduled注解方法的bean实例的,如果没有那就不需要处理了
+				2. 快速判断
+					- 是 java. 开头的类（比如 java.lang.String）→ 这是 JDK 自带的类，JDK 的类怎么可能有 Spring 的注解？不可能，直接排除。
+					- 不是 java. 开头的类（比如 com.example.MyService）→ 这是用户自己的类，有可能，需要继续扫描
+		 */
 		if (!this.nonAnnotatedClasses.contains(targetClass) &&
 				AnnotationUtils.isCandidateClass(targetClass, Arrays.asList(Scheduled.class, Schedules.class))) {
+			// 走到这里,那么说明当前bean实例可能有@Scheduled注解「注意是可能有,不代表一定有」
+
+			// ---
+
+			/*
+				forcus 扫描@Scheduled注解标注的方法
+				遍历 targetClass 的所有方法（包括父类、接口的方法），对每个方法执行 lambda 回调。回调返回非 null 的方法会被收集到结果 Map 中。
+				最终的返回值：
+					Map<Method, Set<Scheduled>>
+						- key：对应的方法
+						- value: 该方法上所有的 @Scheduled 注解集合
+				这里一个method可能对应多个@Scheduled注解,这是支持的,因为有的时候可能希望同一个方法按照多种不同的调度策略执行，就需要标注多个 @Scheduled 注解
+			 */
 			Map<Method, Set<Scheduled>> annotatedMethods = MethodIntrospector.selectMethods(targetClass,
 					(MethodIntrospector.MetadataLookup<Set<Scheduled>>) method -> {
 						Set<Scheduled> scheduledAnnotations = AnnotatedElementUtils.getMergedRepeatableAnnotations(
 								method, Scheduled.class, Schedules.class);
 						return (!scheduledAnnotations.isEmpty() ? scheduledAnnotations : null);
 					});
+			// --- 根据扫描结果来做处理
+
+			// 如果当前bean实例内部没有@Scheduled注解标注的方法,那么缓存到 nonAnnotatedClasses
 			if (annotatedMethods.isEmpty()) {
 				this.nonAnnotatedClasses.add(targetClass);
 				if (logger.isTraceEnabled()) {
 					logger.trace("No @Scheduled annotations found on bean class: " + targetClass);
 				}
 			}
+			// forcus 否则,当前bean实例内部有@Scheduled注解标注的方法,那么逐个处理
+			// 每个注解调用一次 processScheduled(scheduled, method, bean)，解析 cron/fixedRate/fixedDelay 并注册任务
 			else {
 				// Non-empty set of methods
 				annotatedMethods.forEach((method, scheduledAnnotations) ->
@@ -383,6 +420,7 @@ public class ScheduledAnnotationBeanPostProcessor
 				}
 			}
 		}
+		// forcus 注意,spring调度是不需要代理的,这里是直接返回原始bean对象
 		return bean;
 	}
 
@@ -395,18 +433,29 @@ public class ScheduledAnnotationBeanPostProcessor
 	 */
 	protected void processScheduled(Scheduled scheduled, Method method, Object bean) {
 		try {
+			/*
+				forcus 创建runnable
+				把 bean + method 封装成一个 Runnable（实际类型是 ScheduledMethodRunnable），
+				后续调度器每次触发时，就调用 runnable.run() → 反射调用 method.invoke(bean)。
+			 */
 			Runnable runnable = createRunnable(bean, method);
+			// 互斥标记。一旦某种调度方式被解析成功就置为 true，后续再解析到另一种就报错
 			boolean processedSchedule = false;
 			String errorMessage =
 					"Exactly one of the 'cron', 'fixedDelay(String)', or 'fixedRate(String)' attributes is required";
-
+			// 收集本次解析产生的所有 ScheduledTask
 			Set<ScheduledTask> tasks = new LinkedHashSet<>(4);
 
-			// Determine initial delay
+			// Determine initial delay forcus 解析 initialDelay
+			// ----
+			// 先读数值型
 			long initialDelay = convertToMillis(scheduled.initialDelay(), scheduled.timeUnit());
+			// 再读字符串型
 			String initialDelayString = scheduled.initialDelayString();
 			if (StringUtils.hasText(initialDelayString)) {
+				// 不能同时设置两种
 				Assert.isTrue(initialDelay < 0, "Specify 'initialDelay' or 'initialDelayString', not both");
+				// 解析占位符 ${...}
 				if (this.embeddedValueResolver != null) {
 					initialDelayString = this.embeddedValueResolver.resolveStringValue(initialDelayString);
 				}
@@ -421,18 +470,30 @@ public class ScheduledAnnotationBeanPostProcessor
 				}
 			}
 
-			// Check cron expression
+			// Check cron expression forcus 解析 cron
+			/*
+				NOTE:
+					1. cron 不支持 initialDelay。cron 本身就定义了精确的触发时间（秒、分、时...），initialDelay 和它语义冲突，所以直接 Assert 禁止。
+					2. CRON_DISABLED = "-"。这是个设计巧妙的功能——你可以这样写：
+					   		@Scheduled(cron = "${my.task.cron}")
+					   		在配置文件中设 my.task.cron=-，就能动态禁用这个定时任务，不用改代码、不用重新部署。
+					3. 支持时区。@Scheduled(cron = "0 0 9 * * ?", zone = "America/New_York") 表示纽约时间每天 9 点执行。
+			 */
 			String cron = scheduled.cron();
 			if (StringUtils.hasText(cron)) {
 				String zone = scheduled.zone();
+				//  解析占位符
 				if (this.embeddedValueResolver != null) {
 					cron = this.embeddedValueResolver.resolveStringValue(cron);
 					zone = this.embeddedValueResolver.resolveStringValue(zone);
 				}
 				if (StringUtils.hasLength(cron)) {
+					// cron 不支持 initialDelay
 					Assert.isTrue(initialDelay == -1, "'initialDelay' not supported for cron triggers");
-					processedSchedule = true;
+					processedSchedule = true; // 标记：已解析到一种调度方式
+					// 检查是否是禁用标记 "-"
 					if (!Scheduled.CRON_DISABLED.equals(cron)) {
+						// 创建 CronTrigger（带时区或不带）
 						CronTrigger trigger;
 						if (StringUtils.hasText(zone)) {
 							trigger = new CronTrigger(cron, StringUtils.parseTimeZoneString(zone));
@@ -440,31 +501,35 @@ public class ScheduledAnnotationBeanPostProcessor
 						else {
 							trigger = new CronTrigger(cron);
 						}
+						// 注册到 registrar
 						tasks.add(this.registrar.scheduleCronTask(new CronTask(runnable, trigger)));
 					}
 				}
 			}
 
 			// At this point we don't need to differentiate between initial delay set or not anymore
+			// cron 处理完后，initialDelay 如果还是 -1（未设置），统一归为 0。
+			// 后续 fixedDelay 和 fixedRate 的处理就不用再区分"是否设置了 initialDelay"了。
 			if (initialDelay < 0) {
 				initialDelay = 0;
 			}
 
-			// Check fixed delay
+			// Check fixed delay forcus 解析 fixedDelay
 			long fixedDelay = convertToMillis(scheduled.fixedDelay(), scheduled.timeUnit());
+			// 数值型
 			if (fixedDelay >= 0) {
-				Assert.isTrue(!processedSchedule, errorMessage);
+				Assert.isTrue(!processedSchedule, errorMessage);  // 互斥检查！如果前面已经解析到了 cron，processedSchedule = true，这里再发现 fixedDelay 也有值 → 抛异常。三种调度方式互斥。
 				processedSchedule = true;
 				tasks.add(this.registrar.scheduleFixedDelayTask(new FixedDelayTask(runnable, fixedDelay, initialDelay)));
 			}
-
+			// 字符串型
 			String fixedDelayString = scheduled.fixedDelayString();
 			if (StringUtils.hasText(fixedDelayString)) {
 				if (this.embeddedValueResolver != null) {
 					fixedDelayString = this.embeddedValueResolver.resolveStringValue(fixedDelayString);
 				}
 				if (StringUtils.hasLength(fixedDelayString)) {
-					Assert.isTrue(!processedSchedule, errorMessage);
+					Assert.isTrue(!processedSchedule, errorMessage); // 互斥检查！
 					processedSchedule = true;
 					try {
 						fixedDelay = convertToMillis(fixedDelayString, scheduled.timeUnit());
@@ -477,7 +542,7 @@ public class ScheduledAnnotationBeanPostProcessor
 				}
 			}
 
-			// Check fixed rate
+			// Check fixed rate forcus 解析 fixedRate
 			long fixedRate = convertToMillis(scheduled.fixedRate(), scheduled.timeUnit());
 			if (fixedRate >= 0) {
 				Assert.isTrue(!processedSchedule, errorMessage);
@@ -504,9 +569,11 @@ public class ScheduledAnnotationBeanPostProcessor
 			}
 
 			// Check whether we had any attribute set
+			// forcus 如果 cron、fixedDelay、fixedRate 一个都没设（全是默认值），直接报错：
 			Assert.isTrue(processedSchedule, errorMessage);
 
 			// Finally register the scheduled tasks
+			// forcus 存入 scheduledTasks 映射
 			synchronized (this.scheduledTasks) {
 				Set<ScheduledTask> regTasks = this.scheduledTasks.computeIfAbsent(bean, key -> new LinkedHashSet<>(4));
 				regTasks.addAll(tasks);

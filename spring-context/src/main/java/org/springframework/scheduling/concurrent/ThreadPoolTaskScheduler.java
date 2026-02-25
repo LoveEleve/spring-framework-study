@@ -168,17 +168,36 @@ public class ThreadPoolTaskScheduler extends ExecutorConfigurationSupport
 	@Override
 	protected ExecutorService initializeExecutor(
 			ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler) {
-
+		// forcus 创建调度线程池 - 内部创建的就是jdk原生的调度线程池
 		this.scheduledExecutor = createExecutor(this.poolSize, threadFactory, rejectedExecutionHandler);
-
+		// forcus 配置调度线程池的三个停机策略
 		if (this.scheduledExecutor instanceof ScheduledThreadPoolExecutor) {
 			ScheduledThreadPoolExecutor scheduledPoolExecutor = (ScheduledThreadPoolExecutor) this.scheduledExecutor;
+			// 1. 取消任务时，是否移除任务
+			/*
+				作用：当一个定时任务被 cancel() 后，是否立即从工作队列（DelayedWorkQueue）中移除
+					当为false时: 被取消的任务仍然留在队列中，直到其延迟时间到达后才被移除（惰性清理）
+					当为true时: 被取消的任务立即从队列中移除
+			 */
 			if (this.removeOnCancelPolicy) {
 				scheduledPoolExecutor.setRemoveOnCancelPolicy(true);
 			}
+			// 2. 停机时，是否继续执行周期性任务
+			/*
+				作用：调用 shutdown() 后，已存在的周期性任务（fixedRate/fixedDelay）是否继续执行
+					false(默认): shutdown() 后，周期性任务停止，不再执行下一轮
+					true: shutdown() 后，已存在的周期性任务仍会继续按照周期执行
+				这里说的是 shutdown()（温和关闭），不是 shutdownNow()（强制关闭）
+			 */
 			if (this.continueExistingPeriodicTasksAfterShutdownPolicy) {
 				scheduledPoolExecutor.setContinueExistingPeriodicTasksAfterShutdownPolicy(true);
 			}
+			// 3. 关闭后执行延迟任务策略
+			/*
+				作用：调用 shutdown() 后，已存在但尚未到执行时间的一次性延迟任务是否仍然执行
+					true(默认): shutdown() 后，已提交的延迟任务到时间后仍会执行
+					false 时：shutdown() 后，未到时间的延迟任务直接丢弃
+			 */
 			if (!this.executeExistingDelayedTasksAfterShutdownPolicy) {
 				scheduledPoolExecutor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
 			}

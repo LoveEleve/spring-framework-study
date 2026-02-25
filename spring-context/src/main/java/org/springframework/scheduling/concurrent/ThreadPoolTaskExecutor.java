@@ -114,6 +114,7 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 	 * Default is 1.
 	 * <p><b>This setting can be modified at runtime, for example through JMX.</b>
 	 */
+	// forcus 动态调参
 	public void setCorePoolSize(int corePoolSize) {
 		synchronized (this.poolSizeMonitor) {
 			if (this.threadPoolExecutor != null) {
@@ -251,31 +252,47 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 	@Override
 	protected ExecutorService initializeExecutor(
 			ThreadFactory threadFactory, RejectedExecutionHandler rejectedExecutionHandler) {
-
-		BlockingQueue<Runnable> queue = createQueue(this.queueCapacity);
+		/*
+			当用户设置的队列容量 > 0 时，创建的则是 LinkedBlockingQueue<>(queueCapacity)
+			否则是 SynchronousQueue (类似于CachedThreadPool,线程数可能会快速增长)
+		 */
+		BlockingQueue<Runnable> queue = createQueue(this.queueCapacity); // forcus 创建阻塞队列,
 
 		ThreadPoolExecutor executor;
+		// forcus 如果有装饰器
 		if (this.taskDecorator != null) {
+			// forcus 创建jdk线程池
 			executor = new ThreadPoolExecutor(
 					this.corePoolSize, this.maxPoolSize, this.keepAliveSeconds, TimeUnit.SECONDS,
 					queue, threadFactory, rejectedExecutionHandler) {
+				// forcus 核心 - 重写了线程池的execute()方法
 				@Override
 				public void execute(Runnable command) {
+					// 1. 装饰任务
 					Runnable decorated = taskDecorator.decorate(command);
+					// 2. 记录映射：装饰后的任务 -> 原始任务的映射
+					/*
+						为什么需要映射？
+						场景：shutdownNow() 返回的是队列中装饰后的任务，但用户持有的是原始的 Future 引用。
+						如果只取消装饰后的，用户的 future.get() 会一直阻塞。所以必须通过映射找到原始任务也取消掉。
+						使用 弱引用 Map 是为了不阻止 GC——任务执行完后，原始和装饰后的 Runnable 都应该被回收。
+					 */
 					if (decorated != command) {
 						decoratedTaskMap.put(decorated, command);
 					}
+					// 3. 提交装饰后的任务
 					super.execute(decorated);
 				}
 			};
 		}
+		// 没有任务装饰器,那么直接创建原始的jdk线程池
 		else {
 			executor = new ThreadPoolExecutor(
 					this.corePoolSize, this.maxPoolSize, this.keepAliveSeconds, TimeUnit.SECONDS,
 					queue, threadFactory, rejectedExecutionHandler);
 
 		}
-
+		// foucus 设置核心线程超时 与 预热线程 (受用户参数影响)
 		if (this.allowCoreThreadTimeOut) {
 			executor.allowCoreThreadTimeOut(true);
 		}
@@ -420,11 +437,11 @@ public class ThreadPoolTaskExecutor extends ExecutorConfigurationSupport
 
 	@Override
 	protected void cancelRemainingTask(Runnable task) {
-		super.cancelRemainingTask(task);
+		super.cancelRemainingTask(task); // forcus 取消装饰后的 FutureTask
 		// Cancel associated user-level Future handle as well
 		Object original = this.decoratedTaskMap.get(task);
 		if (original instanceof Future) {
-			((Future<?>) original).cancel(true);
+			((Future<?>) original).cancel(true); // forcus 也取消用户原始的 Future
 		}
 	}
 

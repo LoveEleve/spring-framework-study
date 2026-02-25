@@ -161,21 +161,29 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 */
 	@Nullable
 	protected AsyncTaskExecutor determineAsyncExecutor(Method method) {
+		/*
+			查询该方法对应的线程池缓存
+			Map<Method, AsyncTaskExecutor> executors = new ConcurrentHashMap<>(16)
+			第一次进来的话,这里是肯定为null的,因为还没有put进去
+		 */
 		AsyncTaskExecutor executor = this.executors.get(method);
 		if (executor == null) {
 			Executor targetExecutor;
-			String qualifier = getExecutorQualifier(method);
+			String qualifier = getExecutorQualifier(method); // forcus-1 读取@Async("executor_name")中的value,通常是用户自定义的线程池的beanName
 			if (StringUtils.hasLength(qualifier)) {
-				targetExecutor = findQualifiedExecutor(this.beanFactory, qualifier);
+				targetExecutor = findQualifiedExecutor(this.beanFactory, qualifier); // 去容器中查找
 			}
 			else {
-				targetExecutor = this.defaultExecutor.get();
+				targetExecutor = this.defaultExecutor.get(); // forcus-2 获取默认线程池
 			}
+			// 如果到这里都没有,那么返回null,在外面会抛出异常 - 通常不会,这是防御性编程
 			if (targetExecutor == null) {
 				return null;
 			}
+			// forcus-3 适配,该方法返回的必须是 AsyncTaskExecutor 类型的线程池
 			executor = (targetExecutor instanceof AsyncListenableTaskExecutor ?
 					(AsyncListenableTaskExecutor) targetExecutor : new TaskExecutorAdapter(targetExecutor));
+			// forcus-4 放入到缓存中：method -> executor
 			this.executors.put(method, executor);
 		}
 		return executor;
@@ -270,9 +278,19 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @param returnType the declared return type (potentially a {@link Future} variant)
 	 * @return the execution result (potentially a corresponding {@link Future} handle)
 	 */
+	// forcus 异步提交任务的核心逻辑
 	@Nullable
 	protected Object doSubmit(Callable<Object> task, AsyncTaskExecutor executor, Class<?> returnType) {
+		/*
+			forcus 在这里根据方法的返回值类分为了4个分支(因为CF是Future的子类,所以在这里必须要先判断子类)
+		 */
+
+		// forcus-1 返回值类型为CF
 		if (CompletableFuture.class.isAssignableFrom(returnType)) {
+			/*
+				1. 使用指定线程池executor(也就是业务自定义的线程池)
+				2. 返回的是一个CF对象(业务方法返回的值被包装在返回的CF对象中,就是通过之前的callable解包来完成的)
+			 */
 			return CompletableFuture.supplyAsync(() -> {
 				try {
 					return task.call();
@@ -282,12 +300,15 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 				}
 			}, executor);
 		}
+		// spring特有,已经过时,暂时不关心
 		else if (ListenableFuture.class.isAssignableFrom(returnType)) {
 			return ((AsyncListenableTaskExecutor) executor).submitListenable(task);
 		}
+		// 同CF一样的原理
 		else if (Future.class.isAssignableFrom(returnType)) {
 			return executor.submit(task);
 		}
+		// 无返回值
 		else {
 			executor.submit(task);
 			return null;
@@ -307,9 +328,12 @@ public abstract class AsyncExecutionAspectSupport implements BeanFactoryAware {
 	 * @param params the parameters used to invoke the method
 	 */
 	protected void handleError(Throwable ex, Method method, Object... params) throws Exception {
+		// forcus 如果返回值是future,那么在这里会通过 rethrowException() 将异常重新抛出
+		// 最终会被doSubmit()中创建的Future捕获,调用方可以通过future.get()来获取到
 		if (Future.class.isAssignableFrom(method.getReturnType())) {
 			ReflectionUtils.rethrowException(ex);
 		}
+		// forces 否则返回值是void,那么使用spring默认的异常处理器来进行处理
 		else {
 			// Could not transmit the exception to the caller with default executor
 			try {

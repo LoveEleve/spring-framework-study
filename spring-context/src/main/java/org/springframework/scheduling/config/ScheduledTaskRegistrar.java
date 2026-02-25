@@ -355,10 +355,20 @@ public class ScheduledTaskRegistrar implements ScheduledTaskHolder, Initializing
 	 */
 	@SuppressWarnings("deprecation")
 	protected void scheduleTasks() {
+		// 如果走到这里还是没有线程池(经过了 BPP显式设置 -> SchedulingConfigurer 回调 -> 容器按类型/名称查找 TaskScheduler -> 降级查找 ScheduledExecutorService)
+		// 那么没办法了,spring必须兜底,但是这里说实话我没太明白,为什么spring的兜底会选择单线程池呢?一般默认设置应该是比较优秀的
 		if (this.taskScheduler == null) {
+			// 创建一个单线程的 JDK 原生调度线程池
+			/*
+				note
+					单线程意味着所有定时任务串行执行，一个任务阻塞会影响其他任务。
+					这就是为什么生产环境通常建议自定义一个线程池大小合适的 TaskScheduler
+			 */
 			this.localExecutor = Executors.newSingleThreadScheduledExecutor();
+			// 把它包装成 Spring 的 ConcurrentTaskScheduler（一个 TaskScheduler 适配器）
 			this.taskScheduler = new ConcurrentTaskScheduler(this.localExecutor);
 		}
+		// forcus 遍历4个任务列表,逐个提交调度
 		if (this.triggerTasks != null) {
 			for (TriggerTask task : this.triggerTasks) {
 				addScheduledTask(scheduleTriggerTask(task));

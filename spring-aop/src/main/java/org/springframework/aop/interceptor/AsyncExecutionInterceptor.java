@@ -100,24 +100,50 @@ public class AsyncExecutionInterceptor extends AsyncExecutionAspectSupport imple
 	@Override
 	@Nullable
 	public Object invoke(final MethodInvocation invocation) throws Throwable {
+		// 下面这3行的最终目的就是为了拿到：用户在源码中真正声明的那个带 @Async 的方法对象 - Method。后续用它来查注解、查缓存、处理异常
 		Class<?> targetClass = (invocation.getThis() != null ? AopUtils.getTargetClass(invocation.getThis()) : null);
 		Method specificMethod = ClassUtils.getMostSpecificMethod(invocation.getMethod(), targetClass);
-		//
 		final Method userDeclaredMethod = BridgeMethodResolver.findBridgedMethod(specificMethod);
 
+		// forcus 确定线程池 - determineAsyncExecutor()
+		// 在生产环境中建议自定义线程池,那么在这里最终获取到的就是业务代码中的线程池了~
 		AsyncTaskExecutor executor = determineAsyncExecutor(userDeclaredMethod);
 		if (executor == null) {
 			throw new IllegalStateException(
 					"No executor specified and no default executor set on AsyncExecutionInterceptor either");
 		}
-
+		/*
+			forcus 封装callable - 闭包 捕获
+			这是一个lambda表达式,创建时不会执行，而是等到线程池调度后才执行,通过 闭包 捕捉到了2个关键变量：
+				1. invocation：这个就是CglibMethodInvocation，包含了代理的所有信息
+				2. userDeclaredMethod：用于异常处理时传给 handleError
+		 */
 		Callable<Object> task = () -> {
 			try {
+				/*
+					forcus 这行代码是在新线程中执行的，继续走 ReflectiveMethodInvocation.proceed()
+					由于当前拦截器链中的 AnnotationAsyncExecutionInterceptor 已经执行完了（currentInterceptorIndex 已经指向链末尾）
+					proceed() 会直接走到业务方法中
+				 */
 				Object result = invocation.proceed();
+				/*
+					 这里是为了处理 AsyncResult 返回值解包 的场景
+					 AsyncResult是什么意思？
+					 对于异步方法来说,一共支持4种返回值：
+					 	1. CompletableFuture<T>:推荐使用这种,功能最强大
+					 	2. ListenableFuture<T>：spring自己扩展的接口,支持添加成功/失败回调,但是要求线程池实现了 AsyncListenableTaskExecutor 接口
+					 	3. Future<T>：经典模式
+					 	4. void
+				 */
 				if (result instanceof Future) {
-					return ((Future<?>) result).get();
+					return ((Future<?>) result).get(); // 在这里获取到真正的返回值,会被线程池包装为future返回给调用方法
 				}
 			}
+			// forcus 异常处理,在生产环境中必须自定义异常处理器,spring默认的处理就是打印error日志
+			/*
+				这里为什么要分为2个异常分支呢？
+				1.因为future.get()是可能抛出异常的(也就是 ExecutionException)，在这里使用ex.getCause()来进行异常解包,把原始异常传递给handleError()
+			 */
 			catch (ExecutionException ex) {
 				handleError(ex.getCause(), userDeclaredMethod, invocation.getArguments());
 			}
@@ -126,7 +152,7 @@ public class AsyncExecutionInterceptor extends AsyncExecutionAspectSupport imple
 			}
 			return null;
 		};
-
+		// forcus 提交任务
 		return doSubmit(task, executor, invocation.getMethod().getReturnType());
 	}
 
