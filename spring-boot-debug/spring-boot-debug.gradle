@@ -1,0 +1,53 @@
+description = "Spring Boot Debug Module"
+
+apply plugin: 'java'
+apply plugin: 'application'
+
+mainClassName = 'com.debug.boot.BootDebugApplication'
+
+// 添加本地 Maven 仓库，用于引入本地编译的 Spring Boot 2.7.18 源码
+repositories {
+    mavenLocal()
+    maven { url 'https://maven.aliyun.com/repository/public' }
+    mavenCentral()
+}
+
+// 定义需要排除的 Spring Framework 模块（因为我们用的是本地源码项目，不需要 Maven 仓库的 jar）
+def springFrameworkExcludes = [
+    'spring-core', 'spring-beans', 'spring-context', 'spring-aop',
+    'spring-web', 'spring-webmvc', 'spring-expression', 'spring-tx',
+    'spring-jdbc', 'spring-jcl'
+]
+
+dependencies {
+    // ========== Spring Framework 核心模块（直接引用本地源码，断点可跳入） ==========
+    implementation(project(":spring-context"))
+    implementation(project(":spring-aop"))
+    implementation(project(":spring-beans"))
+    implementation(project(":spring-core"))
+    implementation(project(":spring-web"))
+    implementation(project(":spring-webmvc"))
+    implementation(project(":spring-tx"))
+    implementation(project(":spring-jdbc"))
+
+    // ========== Spring Boot 核心模块（从本地 Maven 仓库引入，附带 sources jar） ==========
+    // 排除传递依赖中的 Spring Framework jar，避免与本地源码项目冲突
+    implementation("org.springframework.boot:spring-boot:2.7.18") {
+        springFrameworkExcludes.each { mod -> exclude group: 'org.springframework', module: mod }
+    }
+    implementation("org.springframework.boot:spring-boot-autoconfigure:2.7.18") {
+        springFrameworkExcludes.each { mod -> exclude group: 'org.springframework', module: mod }
+    }
+
+    // ========== Spring Boot Starter Web（引入嵌入式 Tomcat 等依赖） ==========
+    implementation("org.springframework.boot:spring-boot-starter-web:2.7.18") {
+        springFrameworkExcludes.each { mod -> exclude group: 'org.springframework', module: mod }
+    }
+
+    // ========== 日志 ==========
+    implementation "ch.qos.logback:logback-classic:1.2.12"
+    implementation "org.slf4j:slf4j-api:1.7.36"
+
+    // ========== JSR 注解支持 ==========
+    implementation "javax.annotation:javax.annotation-api:1.3.2"
+}

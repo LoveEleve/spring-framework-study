@@ -1,5 +1,6 @@
 package com.debug.circulDemo;
 
+import com.debug.circulDemo.service.Man;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
@@ -9,7 +10,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
  */
 public class StartApp {
 	public static void main(String[] args) {
-		AnnotationConfigApplicationContext annotationConfigApplicationContext
+		AnnotationConfigApplicationContext context
 				= new AnnotationConfigApplicationContext(CirculConfig.class);
+		Man man = context.getBean(Man.class);
+		System.out.println("hello world");
 	}
 }

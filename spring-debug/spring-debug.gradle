@@ -1,6 +1,16 @@
 description = "Spring Debug Module"
 
 apply plugin: 'java'
+apply plugin: 'application'
+
+mainClassName = 'com.debug.mvc_demo.MvcApplication'
+
+// 添加本地 Maven 仓库，用于引入本地编译的 Tomcat 8.5 源码
+repositories {
+    maven {
+        url "file:///usr/workenv/maven/maven-3.8.9/repo"
+    }
+}
 
 dependencies {
     // Spring 核心模块
@@ -13,6 +23,14 @@ dependencies {
     // 事务和JDBC支持
     implementation(project(":spring-tx"))
     implementation(project(":spring-jdbc"))
+    
+    // Spring MVC 模块（源码调试）
+    implementation(project(":spring-web"))
+    implementation(project(":spring-webmvc"))
+    
+    // 本地 Tomcat 8.5 源码（从本地 Maven 仓库引入，IDEA 会自动关联 sources jar）
+    // 已通过 mvn install 将 Tomcat 源码安装到本地仓库
+    implementation "org.apache.tomcat:Tomcat8.5.x:8.5.x"
     
     // AspectJ支持
     implementation "org.aspectj:aspectjweaver:1.9.7"
