@@ -219,12 +219,17 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @see #processCandidateBean
 	 * @see #handlerMethodsInitialized
 	 */
+	// forcus 扫描容器中所有 Bean，找出带 @RequestMapping 注解的方法，注册到路由表 mappingRegistry 中
 	protected void initHandlerMethods() {
+		// getCandidateBeanNames()的作用是获取到子容器和父容器中的所有BeanName
 		for (String beanName : getCandidateBeanNames()) {
+			// 不处理scopedTarget前缀的Bean
 			if (!beanName.startsWith(SCOPED_TARGET_NAME_PREFIX)) {
-				processCandidateBean(beanName);
+				processCandidateBean(beanName); // forcus 判断是否是Handler并且处理
 			}
 		}
+		// forcus 初始化完成回调
+		// 仅打印日志，告知共注册了多少个映射(默认没开启,相当于啥都没干~)
 		handlerMethodsInitialized(getHandlerMethods());
 	}
 
@@ -262,8 +267,9 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 				logger.trace("Could not resolve type for bean '" + beanName + "'", ex);
 			}
 		}
+		// forcus isHandler() - 判断当前类是否是Handler(也即类上是否有 @Controller 或者 @RequestMapping 注解)
 		if (beanType != null && isHandler(beanType)) {
-			detectHandlerMethods(beanName);
+			detectHandlerMethods(beanName); // forcus 扫描注解并且注册
 		}
 	}
 
@@ -278,9 +284,12 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 
 		if (handlerType != null) {
 			Class<?> userType = ClassUtils.getUserClass(handlerType);
+			// forcus 扫描所有的方法，找出有 @RequestMapping 注解的方法,返回Method -> MethodInfo的映射
 			Map<Method, T> methods = MethodIntrospector.selectMethods(userType,
 					(MethodIntrospector.MetadataLookup<T>) method -> {
 						try {
+							// forcus 抽象方法,由 RequestMappingHandlerMapping 实现
+							// 负责从方法上解析 @RequestMapping 注解，构建 RequestMappingInfo 对象（包含 URL、HTTP方法、参数条件等）
 							return getMappingForMethod(method, userType);
 						}
 						catch (Throwable ex) {
@@ -294,9 +303,10 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 			else if (mappingsLogger.isDebugEnabled()) {
 				mappingsLogger.debug(formatMappings(userType, methods));
 			}
+			// forcus 遍历注册每个方法
 			methods.forEach((method, mapping) -> {
 				Method invocableMethod = AopUtils.selectInvocableMethod(method, userType);
-				registerHandlerMethod(handler, invocableMethod, mapping);
+				registerHandlerMethod(handler, invocableMethod, mapping); // forcus 注册方法
 			});
 		}
 	}
@@ -328,6 +338,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * @throws IllegalStateException if another method was already registered
 	 * under the same mapping
 	 */
+	// forcus 委托给 mappingRegistry 来进行注册
 	protected void registerHandlerMethod(Object handler, Method method, T mapping) {
 		this.mappingRegistry.register(mapping, handler, method);
 	}
@@ -571,7 +582,7 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 	 * <p>Package-private for testing purposes.
 	 */
 	class MappingRegistry {
-
+		// forcus 主注册表，mapping → 完整注册信息
 		private final Map<T, MappingRegistration<T>> registry = new HashMap<>();
 
 		private final MultiValueMap<String, T> pathLookup = new LinkedMultiValueMap<>();
@@ -632,9 +643,12 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 		public void register(T mapping, Object handler, Method method) {
 			this.readWriteLock.writeLock().lock();
 			try {
+				// forcus 创建 HandlerMethod（封装 bean + method）
+				// 这里的handler可能是string,也可能是bean实例(如果是string的话,那么在这里进行实例化)
 				HandlerMethod handlerMethod = createHandlerMethod(handler, method);
 				validateMethodMapping(handlerMethod, mapping);
-
+				// forcus 注册到路径快速查找表
+				// getDirectPaths() 提取 mapping 中不含通配符的精确路径（如 /user/list），存入 pathLookup
 				Set<String> directPaths = AbstractHandlerMethodMapping.this.getDirectPaths(mapping);
 				for (String path : directPaths) {
 					this.pathLookup.add(path, mapping);
@@ -652,7 +666,17 @@ public abstract class AbstractHandlerMethodMapping<T> extends AbstractHandlerMap
 					corsConfig.validateAllowPrivateNetwork();
 					this.corsLookup.put(handlerMethod, corsConfig);
 				}
-
+				// forcus 写入到主注册表
+				// 将所有信息打包成一个 MappingRegistration 对象，存入核心注册表 registry（HashMap<T, MappingRegistration<T>>）。
+				/*
+					MappingRegistration 是一个数据载体，包含：
+						- mapping：路由条件（URL、HTTP方法等）
+							- 在这里是 RequestMappingInfo (其封装了@RequestMapping注解上的所有匹配条件)
+						- handlerMethod：处理该请求的方法
+						- directPaths：精确路径集合
+						- mappingName：映射名称
+						- hasCorsConfig：是否配置了 CORS
+				 */
 				this.registry.put(mapping,
 						new MappingRegistration<>(mapping, handlerMethod, directPaths, name, corsConfig != null));
 			}

@@ -245,6 +245,7 @@ public class ContextLoader {
 	 * @see #CONFIG_LOCATION_PARAM
 	 */
 	public WebApplicationContext initWebApplicationContext(ServletContext servletContext) {
+		// forcus 检查是否已存在根容器(通常不会出现这种情况,防御性编程)
 		if (servletContext.getAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE) != null) {
 			throw new IllegalStateException(
 					"Cannot initialize context because there is already a root application context present - " +
@@ -260,7 +261,8 @@ public class ContextLoader {
 
 		try {
 			// Store context in local instance variable, to guarantee that
-			// it is available on ServletContext shutdown.
+			// it is available on ServletContext shutdown
+			// forcus Servlet 3.0 编程式（带参构造）-- 这个在之前调用 OnStartup()的时候就已经创建好了,所以这里是不会为null的
 			if (this.context == null) {
 				this.context = createWebApplicationContext(servletContext);
 			}
@@ -272,12 +274,15 @@ public class ContextLoader {
 					if (cwac.getParent() == null) {
 						// The context instance was injected without an explicit parent ->
 						// determine parent for root web application context, if any.
+						// 默认返回的为null,根容器没有父容器(这很好理解~)
 						ApplicationContext parent = loadParentContext(servletContext);
 						cwac.setParent(parent);
 					}
+					// forcus 配置并刷新父容器(根应用上下文)!!!
 					configureAndRefreshWebApplicationContext(cwac, servletContext);
 				}
 			}
+			// forcus 存入 ServletContext: 将根容器存入 ServletContext，后续可通过 WebApplicationContextUtils.getWebApplicationContext() 获取
 			servletContext.setAttribute(WebApplicationContext.ROOT_WEB_APPLICATION_CONTEXT_ATTRIBUTE, this.context);
 
 			ClassLoader ccl = Thread.currentThread().getContextClassLoader();
@@ -380,7 +385,7 @@ public class ContextLoader {
 						ObjectUtils.getDisplayString(sc.getContextPath()));
 			}
 		}
-
+		// forcus 保存 ServletContext
 		wac.setServletContext(sc);
 		String configLocationParam = sc.getInitParameter(CONFIG_LOCATION_PARAM);
 		if (configLocationParam != null) {
@@ -396,6 +401,7 @@ public class ContextLoader {
 		}
 
 		customizeContext(sc, wac);
+		// forcus 刷新容器!!!
 		wac.refresh();
 	}
 

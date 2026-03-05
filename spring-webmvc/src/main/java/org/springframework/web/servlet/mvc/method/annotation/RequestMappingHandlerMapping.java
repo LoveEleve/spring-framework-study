@@ -195,8 +195,7 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 			this.config.setPatternParser(getPatternParser());
 			Assert.isTrue(!this.useSuffixPatternMatch && !this.useRegisteredSuffixPatternMatch,
 					"Suffix pattern matching not supported with PathPatternParser.");
-		}
-		else {
+		} else {
 			this.config.setSuffixPatternMatch(useSuffixPatternMatch());
 			this.config.setRegisteredSuffixPatternMatch(useRegisteredSuffixPatternMatch());
 			this.config.setPathMatcher(getPathMatcher());
@@ -278,21 +277,26 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	 * @see #getCustomMethodCondition(Method)
 	 * @see #getCustomTypeCondition(Class)
 	 */
+	// forcus 核心方法：从方法上解析 @RequestMapping 注解，构建 RequestMappingInfo 对象。
 	@Override
 	@Nullable
 	protected RequestMappingInfo getMappingForMethod(Method method, Class<?> handlerType) {
+		// forcus-1 解析方法级别的@RequestMapping注解
 		RequestMappingInfo info = createRequestMappingInfo(method);
 		if (info != null) {
+			// forcus-2 解析类级别的@RequestMapping注解
 			RequestMappingInfo typeInfo = createRequestMappingInfo(handlerType);
 			if (typeInfo != null) {
+				// forcus-3 合并:类路径+方法路径
 				info = typeInfo.combine(info);
 			}
+			// 应用路径前缀（pathPrefixes 配置）可选
 			String prefix = getPathPrefix(handlerType);
 			if (prefix != null) {
 				info = RequestMappingInfo.paths(prefix).options(this.config).build().combine(info);
 			}
 		}
-		return info;
+		return info; // 如果返回null,那么代表当前方法不是一个Handler方法
 	}
 
 	@Nullable
@@ -366,13 +370,13 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 			RequestMapping requestMapping, @Nullable RequestCondition<?> customCondition) {
 
 		RequestMappingInfo.Builder builder = RequestMappingInfo
-				.paths(resolveEmbeddedValuesInPatterns(requestMapping.path()))
-				.methods(requestMapping.method())
-				.params(requestMapping.params())
-				.headers(requestMapping.headers())
-				.consumes(requestMapping.consumes())
-				.produces(requestMapping.produces())
-				.mappingName(requestMapping.name());
+				.paths(resolveEmbeddedValuesInPatterns(requestMapping.path()))  // 解析 ${...} 占位符
+				.methods(requestMapping.method())    // GET/POST/PUT...
+				.params(requestMapping.params())     // 请求参数条件
+				.headers(requestMapping.headers())   // 请求头条件
+				.consumes(requestMapping.consumes()) // Content-Type 条件
+				.produces(requestMapping.produces()) // Accept 条件
+				.mappingName(requestMapping.name()); // 映射名称
 		if (customCondition != null) {
 			builder.customCondition(customCondition);
 		}
@@ -386,8 +390,7 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 	protected String[] resolveEmbeddedValuesInPatterns(String[] patterns) {
 		if (this.embeddedValueResolver == null) {
 			return patterns;
-		}
-		else {
+		} else {
 			String[] resolvedPatterns = new String[patterns.length];
 			for (int i = 0; i < patterns.length; i++) {
 				resolvedPatterns[i] = this.embeddedValueResolver.resolveStringValue(patterns[i]);
@@ -492,11 +495,9 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		String allowCredentials = resolveCorsAnnotationValue(annotation.allowCredentials());
 		if ("true".equalsIgnoreCase(allowCredentials)) {
 			config.setAllowCredentials(true);
-		}
-		else if ("false".equalsIgnoreCase(allowCredentials)) {
+		} else if ("false".equalsIgnoreCase(allowCredentials)) {
 			config.setAllowCredentials(false);
-		}
-		else if (!allowCredentials.isEmpty()) {
+		} else if (!allowCredentials.isEmpty()) {
 			throw new IllegalStateException("@CrossOrigin's allowCredentials value must be \"true\", \"false\", " +
 					"or an empty string (\"\"): current value is [" + allowCredentials + "]");
 		}
@@ -504,16 +505,14 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		String allowPrivateNetwork = resolveCorsAnnotationValue(annotation.allowPrivateNetwork());
 		if ("true".equalsIgnoreCase(allowPrivateNetwork)) {
 			config.setAllowPrivateNetwork(true);
-		}
-		else if ("false".equalsIgnoreCase(allowPrivateNetwork)) {
+		} else if ("false".equalsIgnoreCase(allowPrivateNetwork)) {
 			config.setAllowPrivateNetwork(false);
-		}
-		else if (!allowPrivateNetwork.isEmpty()) {
+		} else if (!allowPrivateNetwork.isEmpty()) {
 			throw new IllegalStateException("@CrossOrigin's allowPrivateNetwork value must be \"true\", \"false\", " +
 					"or an empty string (\"\"): current value is [" + allowPrivateNetwork + "]");
 		}
 
-		if (annotation.maxAge() >= 0 ) {
+		if (annotation.maxAge() >= 0) {
 			config.setMaxAge(annotation.maxAge());
 		}
 	}
@@ -522,8 +521,7 @@ public class RequestMappingHandlerMapping extends RequestMappingInfoHandlerMappi
 		if (this.embeddedValueResolver != null) {
 			String resolved = this.embeddedValueResolver.resolveStringValue(value);
 			return (resolved != null ? resolved : "");
-		}
-		else {
+		} else {
 			return value;
 		}
 	}

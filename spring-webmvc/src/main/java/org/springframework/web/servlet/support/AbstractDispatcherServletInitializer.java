@@ -60,8 +60,8 @@ public abstract class AbstractDispatcherServletInitializer extends AbstractConte
 
 	@Override
 	public void onStartup(ServletContext servletContext) throws ServletException {
-		super.onStartup(servletContext);
-		registerDispatcherServlet(servletContext);
+		super.onStartup(servletContext); // forcus 先调用父类的onStartup()方法
+		registerDispatcherServlet(servletContext); // forcus 注册 DispatcherServlet
 	}
 
 	/**
@@ -76,33 +76,36 @@ public abstract class AbstractDispatcherServletInitializer extends AbstractConte
 	 * @param servletContext the context to register the servlet against
 	 */
 	protected void registerDispatcherServlet(ServletContext servletContext) {
-		String servletName = getServletName();
+		String servletName = getServletName(); // 获取servletName - 默认返回 “dispatcher”
 		Assert.hasLength(servletName, "getServletName() must not return null or empty");
-
+		// forcus 创建子容器(和父容器是一样的操作，对应着 WebMvcConfig 配置文件)
+		// 存放 Controller、ViewResolver、HandlerMapping 等 Web 层组件( 作为根容器的子容器 , 可以访问父容器（根容器）的 Bean)
 		WebApplicationContext servletAppContext = createServletApplicationContext();
 		Assert.notNull(servletAppContext, "createServletApplicationContext() must not return null");
-
+		// forcus 创建 DispatcherServlet(将上面创建的spring子容器传入到 DispatcherServlet中)
 		FrameworkServlet dispatcherServlet = createDispatcherServlet(servletAppContext);
 		Assert.notNull(dispatcherServlet, "createDispatcherServlet(WebApplicationContext) must not return null");
+		// ApplicationContextInitializer 用于在容器刷新前执行自定义逻辑，默认返回 null
 		dispatcherServlet.setContextInitializers(getServletApplicationContextInitializers());
-
+		// forcus 注册 DispatcherServlet 到 tomcat 容器中 !!!
 		ServletRegistration.Dynamic registration = servletContext.addServlet(servletName, dispatcherServlet);
 		if (registration == null) {
 			throw new IllegalStateException("Failed to register servlet with name '" + servletName + "'. " +
 					"Check if there is another servlet registered under the same name.");
 		}
+		// forcus 配置Servlet参数
+		registration.setLoadOnStartup(1); // 容器启动时立即初始化
+		registration.addMapping(getServletMappings()); // URL 映射路径 (就是在我的MyWebInitializer中配置的"/")
+		registration.setAsyncSupported(isAsyncSupported()); // 是否支持异步请求
 
-		registration.setLoadOnStartup(1);
-		registration.addMapping(getServletMappings());
-		registration.setAsyncSupported(isAsyncSupported());
-
+		// forcus 获取并且注册过滤器(这里就是在MyWebInitializer中配置的过滤器)
 		Filter[] filters = getServletFilters();
 		if (!ObjectUtils.isEmpty(filters)) {
 			for (Filter filter : filters) {
-				registerServletFilter(servletContext, filter);
+				registerServletFilter(servletContext, filter); // 这里有个关键点是, Filter 只对当前 DispatcherServlet 生效，而非全局
 			}
 		}
-
+		//  允许子类自定义配置
 		customizeRegistration(registration);
 	}
 

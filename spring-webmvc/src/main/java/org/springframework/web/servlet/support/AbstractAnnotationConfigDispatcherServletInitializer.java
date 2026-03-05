@@ -53,9 +53,12 @@ public abstract class AbstractAnnotationConfigDispatcherServletInitializer
 	@Override
 	@Nullable
 	protected WebApplicationContext createRootApplicationContext() {
+		// forcus 在这里获取的就是 MyWebApplicationInitializer中配置的RootConfig
 		Class<?>[] configClasses = getRootConfigClasses();
 		if (!ObjectUtils.isEmpty(configClasses)) {
+			// 在这里创建spring容器对象
 			AnnotationConfigWebApplicationContext context = new AnnotationConfigWebApplicationContext();
+			// 注册到容器中,注意只有容器对象，容器还没有启动呢！
 			context.register(configClasses);
 			return context;
 		}

@@ -145,10 +145,12 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 	 * @throws ServletException if bean properties are invalid (or required
 	 * properties are missing), or if subclass initialization fails.
 	 */
+	// forcus 可以说是springmvc的启动入口!
 	@Override
 	public final void init() throws ServletException {
 
 		// Set bean properties from init parameters.
+		// 处理<init-param>,默认为null,所以这里不会进入,直接跳转到最后一个方法
 		PropertyValues pvs = new ServletConfigPropertyValues(getServletConfig(), this.requiredProperties);
 		if (!pvs.isEmpty()) {
 			try {
@@ -165,8 +167,9 @@ public abstract class HttpServletBean extends HttpServlet implements Environment
 				throw ex;
 			}
 		}
-
+		//
 		// Let subclasses do whatever initialization they like.
+		// forcus 初始化Servlet - 核心方法
 		initServletBean();
 	}
 

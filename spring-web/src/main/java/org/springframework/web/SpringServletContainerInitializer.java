@@ -139,6 +139,10 @@ public class SpringServletContainerInitializer implements ServletContainerInitia
 	 * @see WebApplicationInitializer#onStartup(ServletContext)
 	 * @see AnnotationAwareOrderComparator
 	 */
+	// forcus springmvc与tomcat的核心链接点
+	/*
+		这里的入参就是Tomcat帮当前类搜集的类 - WebApplicationInitializer类型的
+	 */
 	@Override
 	public void onStartup(@Nullable Set<Class<?>> webAppInitializerClasses, ServletContext servletContext)
 			throws ServletException {

@@ -57,10 +57,14 @@ public abstract class AbstractContextLoaderInitializer implements WebApplication
 	 * @param servletContext the servlet context to register the listener against
 	 */
 	protected void registerContextLoaderListener(ServletContext servletContext) {
+		// forcus 创建根应用上下文(也就是父容器) -- 在这里只是创建容器,但是并没有刷新!!!
 		WebApplicationContext rootAppContext = createRootApplicationContext();
 		if (rootAppContext != null) {
+			// forcus 创建 ContextLoaderListener,监听 Servlet容器的生命周期
 			ContextLoaderListener listener = new ContextLoaderListener(rootAppContext);
+			// getRootApplicationContextInitializers() - ApplicationContextInitializer 的作用：在容器刷新前执行自定义初始化逻辑,在这里默认没有
 			listener.setContextInitializers(getRootApplicationContextInitializers());
+			// 注册监听到servlet容器中
 			servletContext.addListener(listener);
 		}
 		else {

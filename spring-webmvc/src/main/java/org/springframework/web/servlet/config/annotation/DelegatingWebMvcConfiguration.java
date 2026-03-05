@@ -42,9 +42,16 @@ import org.springframework.web.servlet.HandlerExceptionResolver;
 @Configuration(proxyBeanMethods = false)
 public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
 
+	// forcus 核心数据结构：组合所有 WebMvcConfigurer(内部使用了一个List来存储)
+	/*
+		WebMvcConfigurer - 定制接口(当用户需要定制 Spring MVC 的行为,提供各种配置方法的回调点)
+			- configurePathMatch(): 定制路径匹配（是否使用 PathPattern、是否匹配尾部斜杠等）
+			- addInterceptors():添加拦截器
+			- ...
+	 */
 	private final WebMvcConfigurerComposite configurers = new WebMvcConfigurerComposite();
 
-
+	// forcus @Autowired 自动注入容器中所有的WebMvcConfigurer!!!
 	@Autowired(required = false)
 	public void setConfigurers(List<WebMvcConfigurer> configurers) {
 		if (!CollectionUtils.isEmpty(configurers)) {
@@ -52,7 +59,11 @@ public class DelegatingWebMvcConfiguration extends WebMvcConfigurationSupport {
 		}
 	}
 
-
+	/*
+		=================
+			forcus 重写父类的所有 protected 方法，委托给 configurers
+		=================
+	 */
 	@Override
 	protected void configurePathMatch(PathMatchConfigurer configurer) {
 		this.configurers.configurePathMatch(configurer);

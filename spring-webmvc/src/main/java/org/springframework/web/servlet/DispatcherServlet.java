@@ -495,16 +495,17 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * Initialize the strategy objects that this servlet uses.
 	 * <p>May be overridden in subclasses in order to initialize further strategy objects.
 	 */
+	// forcus 初始化九大组件
 	protected void initStrategies(ApplicationContext context) {
-		initMultipartResolver(context);
-		initLocaleResolver(context);
-		initThemeResolver(context);
-		initHandlerMappings(context);
-		initHandlerAdapters(context);
-		initHandlerExceptionResolvers(context);
-		initRequestToViewNameTranslator(context);
-		initViewResolvers(context);
-		initFlashMapManager(context);
+		initMultipartResolver(context); // 文件上传相关 - 暂时跳过
+		initLocaleResolver(context); // 国际化相关 - 暂时跳过
+		initThemeResolver(context); // 主题切换 - 暂时跳过
+		initHandlerMappings(context); // forcus 请求路由核心，@RequestMapping 的底层实现
+		initHandlerAdapters(context); // forcus 方法调用核心，参数解析/返回值处理都在这里
+		initHandlerExceptionResolvers(context); // forcus @ExceptionHandler 的底层，异常处理核心
+		initRequestToViewNameTranslator(context); // 当 Controller 没有返回视图名时自动推断，用得少但逻辑简单 - 暂时跳过
+		initViewResolvers(context); // forcus 视图解析，理解 MVC 渲染流程必须
+		initFlashMapManager(context); // PRG 模式（Post-Redirect-Get）下传递参数用，现代前后端分离项目基本不用
 	}
 
 	/**
@@ -588,17 +589,24 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	private void initHandlerMappings(ApplicationContext context) {
 		this.handlerMappings = null;
-
+		/*
+			在这里分为两种模式：
+			 1. detectAllHandlerMappings = true: 自动发现所有的HandleMapping (forcus 默认为true)
+			 2. detectAllHandlerMappings = false: 只取名字固定为 "handlerMapping" 的单个 Bean
+		 */
 		if (this.detectAllHandlerMappings) {
 			// Find all HandlerMappings in the ApplicationContext, including ancestor contexts.
+			//
 			Map<String, HandlerMapping> matchingBeans =
 					BeanFactoryUtils.beansOfTypeIncludingAncestors(context, HandlerMapping.class, true, false);
 			if (!matchingBeans.isEmpty()) {
 				this.handlerMappings = new ArrayList<>(matchingBeans.values());
 				// We keep HandlerMappings in sorted order.
+				// forcus 按照 @Order 注解的顺序排序,这点很重要,谁排在前面谁先匹配。
 				AnnotationAwareOrderComparator.sort(this.handlerMappings);
 			}
 		}
+		// 第二种模式 - 跳过
 		else {
 			try {
 				HandlerMapping hm = context.getBean(HANDLER_MAPPING_BEAN_NAME, HandlerMapping.class);

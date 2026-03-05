@@ -301,17 +301,28 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * Return a {@link RequestMappingHandlerMapping} ordered at 0 for mapping
 	 * requests to annotated controllers.
 	 */
+	// forcus 注册
 	@Bean
 	@SuppressWarnings("deprecation")
 	public RequestMappingHandlerMapping requestMappingHandlerMapping(
 			@Qualifier("mvcContentNegotiationManager") ContentNegotiationManager contentNegotiationManager,
 			@Qualifier("mvcConversionService") FormattingConversionService conversionService,
 			@Qualifier("mvcResourceUrlProvider") ResourceUrlProvider resourceUrlProvider) {
-
+		// forcus 创建RequestMappingHandlerMapping对象 - 扩展方法(子类可以重写)
+		// 除此之外,另外一个需要关心的是：RequestMappingHandlerMapping实现了InitializingBean接口
+		// 在Bean初始化时的回调操作会处理所有的Controller
 		RequestMappingHandlerMapping mapping = createRequestMappingHandlerMapping();
-		mapping.setOrder(0);
+		mapping.setOrder(0); // 设置优先级(最高)
+		/*
+			forcus 设置拦截器,两个步骤:
+				1. 调用 addInterceptors(registry) —— 这是留给用户扩展的钩子方法（实现 WebMvcConfigurer 后重写）
+				2. 自动添加两个内置拦截器：不是很常见,暂时不深入了解
+		 */
 		mapping.setInterceptors(getInterceptors(conversionService, resourceUrlProvider));
+		// 设置内容协商管理器
+		// ContentNegotiationManager 负责根据请求（Accept 头、URL 后缀、参数等）决定响应的媒体类型（如 application/json、text/html）
 		mapping.setContentNegotiationManager(contentNegotiationManager);
+		// 设置跨域配置
 		mapping.setCorsConfigurations(getCorsConfigurations());
 
 		PathMatchConfigurer pathConfig = getPathMatchConfigurer();
@@ -662,19 +673,106 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	 * <li>{@link #configureMessageConverters} for adding custom message converters.
 	 * </ul>
 	 */
+	// forcus 继 RequestMappingHandler 之后的另一个核心Bean
+	/*
+		一个问题：为什么需要适配器呢？
+			虽然我在这里只介绍了一个 Handler - RequestMappingHandler
+			但是SpringMVC 还有其他的 Handler - SimpleControllerHandler/.../ (但是在这里不扩展了,因为使用的不多,基本上都是@RequestMapping)
+			所以这里就有一个问题：那就是 xxxHandler的作用是用来执行方法的
+			但是 DispatcherServlet 不认识这些 Handler, 但是spring确实支持这些 handler，那么只能在对应的方法中使用if依次处理
+				void doDispatch(...) {
+					Object handler = getHandler(request);
+					if (handler instanceof RequestMappingHandler){todo}
+					else if (handler instanceof SimpleControllerHandler){todo}
+					else if (...)
+					...
+				}
+			非常臃肿
+			所以这里就引入了适配器模式
+	 */
 	@Bean
 	public RequestMappingHandlerAdapter requestMappingHandlerAdapter(
 			@Qualifier("mvcContentNegotiationManager") ContentNegotiationManager contentNegotiationManager,
 			@Qualifier("mvcConversionService") FormattingConversionService conversionService,
 			@Qualifier("mvcValidator") Validator validator) {
-
+		// forcus 创建 RequestMappingHandlerAdapter 对象 (子类可以重写)
 		RequestMappingHandlerAdapter adapter = createRequestMappingHandlerAdapter();
+
+		// forcus 配置核心能力(5项)
+		// ==========
+
+		/*
+			1.  响应媒体类型协商(决定用什么格式响应客户端（JSON / XML / 其他）)
+				这个就是容器内的 mvcContentNegotiationManager Bean (默认支持通过 Accept 请求头来协商格式。)
+		 */
 		adapter.setContentNegotiationManager(contentNegotiationManager);
+		/*
+			2. forcus  消息转换器
+				- getMessageConverters()：获取消息转换器列表
+		 */
 		adapter.setMessageConverters(getMessageConverters());
+		/*
+			3. 设置 WebBindingInitializer
+				- conversionService 和 validator 打包成一个 ConfigurableWebBindingInitializer 对象。
+				- 核心作用：每次请求进来，在创建 WebDataBinder 的时候，用它来初始化这个 WebDataBinder。
+			== 那么首先就要理解这个 WebDataBinder 是什么鬼?
+			 - WebDataBinder 负责把请求参数（字符串）绑定到 Java 对象上，但它需要两个能力：
+			 	1. 类型转换: 由 mvcConversionService 提供 ("18" → int，"2000-01-01" → Date)
+			 	2. 参数校验: 由 mvcValidator 提供 (@NotNull、@Min(0) 等 JSR-303 校验)
+			== 为什么需要 WebBindingInitializer？
+				问题：每次请求都会创建一个新的 WebDataBinder，
+				但每个 WebDataBinder 都需要 conversionService 和 validator，
+				怎么保证每次创建的 WebDataBinder 都有这两个能力？
+				就是靠这个 WebBindingInitializer(每次创建WebDataBinder的时候，用它来注入 mvcConversionService & mvcValidator)
+			「在这里简单了解一下吧～,暂时不深入了解了」
+		 */
 		adapter.setWebBindingInitializer(getConfigurableWebBindingInitializer(conversionService, validator));
+		/*
+			4. 获取用户自定义的参数解析器(默认为空实现)
+			注意：spring默认的参数解析器不是在这里注册的,而是在 afterPropertiesSet() 中才注册
+			到那个时候,会把这里的自定义解析器插入到内置的解析器前面
+		 */
 		adapter.setCustomArgumentResolvers(getArgumentResolvers());
+		/*
+			用户自定义返回值处理器(逻辑同4)
+			== 从这里就可以转入到 afterPropertiesSet()方法了,但是还有一点要在这里说明一下：
+				那就是：ArgumentResolvers / ReturnValueHandlers 与 MessageConverters 的区别是什么呢？
+				乍一看好像处理的都是请求的入参与出参,但是处理的层次是不一样的!
+					- MessageConverters: 处理的是 HTTP 报文体 的读写 - 报文体的字节流 ↔ Java 对象 - 读取请求体 / 写入响应体时
+					- ArgumentResolvers / ReturnValueHandlers: 方法参数/返回值 的解析与处理 - 参数从哪来？返回值怎么处理？- 调用 Controller 方法前后
+		 */
+		/*
+			第一步：ArgumentResolvers 负责解析参数
+
+					HTTP 请求进来
+						↓
+					ArgumentResolver 看到 @RequestBody → "这个参数我来处理！"
+					ArgumentResolver 看到 @PathVariable → "这个参数我来处理！"
+					ArgumentResolver 的职责是：决定这个参数从哪里来、怎么来
+					@PathVariable id → 从 URL 路径里取 /user/123 中的 123
+					@RequestParam name → 从 URL 查询参数里取
+					@RequestHeader → 从请求头里取
+					@RequestBody dto → 从请求体里取（这里才会用到 MessageConverter！）
+					@ModelAttribute → 从表单参数绑定
+					HttpServletRequest → 直接注入原生对象
+
+			第二步：MessageConverters 负责读取报文体（仅在需要时）
+
+					@RequestBody 的 ArgumentResolver 发现需要读请求体
+						↓
+					MessageConverter 登场：把 {"name":"张三","age":18} 这段 JSON 字节流
+						↓
+					转换成 Java 对象 UserDTO
+
+			--- forcus 关键点：MessageConverter 是 ArgumentResolver 的工具
+				ArgumentResolver（决策层）
+					└── 当遇到 @RequestBody 时
+							└── 调用 MessageConverter（执行层）来做实际的字节流转换
+				返回值也是同理
+		 */
 		adapter.setCustomReturnValueHandlers(getReturnValueHandlers());
 
+		// 配置扩展能力(Jackson + 异步) - 暂时不深入了解~
 		if (jackson2Present) {
 			adapter.setRequestBodyAdvice(Collections.singletonList(new JsonViewRequestBodyAdvice()));
 			adapter.setResponseBodyAdvice(Collections.singletonList(new JsonViewResponseBodyAdvice()));
@@ -862,10 +960,19 @@ public class WebMvcConfigurationSupport implements ApplicationContextAware, Serv
 	protected final List<HttpMessageConverter<?>> getMessageConverters() {
 		if (this.messageConverters == null) {
 			this.messageConverters = new ArrayList<>();
+			// forcus 调用用户自定义配置 - 如果子类覆盖的是这个方法，那么会覆盖spring默认的的消息转换器
 			configureMessageConverters(this.messageConverters);
+			// forcus 如果用户没有配置，添加默认转换器
 			if (this.messageConverters.isEmpty()) {
+				// forcus 添加了很多消息转化器
+				/*
+					比如：MappingJackson2HttpMessageConverter
+						- @RequestBody → MappingJackson2HttpMessageConverter 读取 JSON
+						- @ResponseBody → MappingJackson2HttpMessageConverter 写入 JSON
+				 */
 				addDefaultHttpMessageConverters(this.messageConverters);
 			}
+			// forcus 扩展转换器列表 - 如果子类重写的是这个方法，那么不会覆盖spring默认的的消息转换器
 			extendMessageConverters(this.messageConverters);
 		}
 		return this.messageConverters;
